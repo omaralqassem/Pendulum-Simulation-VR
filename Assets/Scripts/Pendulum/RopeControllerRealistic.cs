@@ -66,8 +66,6 @@ public class RopeControllerRealistic : MonoBehaviour
         //Move what is hanging from the rope to the end of the rope
         whatIsHangingFromTheRope.position = allRopeSections[0].pos;
 
-        //Make what's hanging from the rope look at the next to last rope position to make it rotate with the rope
-        whatIsHangingFromTheRope.LookAt(allRopeSections[1].pos);
     }
 
     void FixedUpdate()
