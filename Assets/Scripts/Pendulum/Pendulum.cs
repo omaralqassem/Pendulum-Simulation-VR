@@ -12,12 +12,16 @@ public class Pendulum: MonoBehaviour
     private float angle;
 //هي نفسا w يلي حنستخدما بالرانج كوتا
     private float angularVelocity;
-    public float damping = 0.2f;
+
+    //connect with Damping
+    private DampingController dampingController;
 
    
     void Start()
     {
         angle = angleDegrees * Mathf.Deg2Rad;
+        dampingController =
+            GetComponent<DampingController>();  
     }
     void FixedUpdate()
     {
@@ -32,7 +36,21 @@ public class Pendulum: MonoBehaviour
     //هي نفسا  dw/dt
     float AngularAcceleration(float currentAngle,float currentVelocity)
     {
-        return -(gravity / length)* Mathf.Sin(currentAngle)- damping * currentVelocity;
+        float gravityTerm =
+                -(gravity / length) *
+                Mathf.Sin(currentAngle);
+
+                
+        //Air drag effect
+        float dragTerm =
+                dampingController.CalculateAngularDrag
+                (
+                    currentVelocity,
+                    length
+                );
+
+            return gravityTerm + dragTerm;
+
     }
     void RK4(float dt)
     {
