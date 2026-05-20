@@ -60,22 +60,17 @@
         "*.asset": "yaml",
         "*.meta": "yaml",
         "*.prefab": "yaml",
-<<<<<<< HEAD
-        "yaml*.unity": "yaml",
-        "*.unity": "yaml"
-=======
-        "*.unity": "yaml",
->>>>>>> 12a6ab03a2ad0fbf8ee143711ed41b0ad189ef8a
+        "<<<<<<<HEADyaml*.unity": "yaml",
+        "yaml=======*.unity": "yaml",
+        "": ">>>>>>>12a6ab03a2ad0fbf8ee143711ed41b0ad189ef8a"
     },
     "explorer.fileNesting.enabled": true,
     "explorer.fileNesting.patterns": {
         "*.sln": "*.csproj",
         "*.slnx": "*.csproj"
     },
-<<<<<<< HEAD
-    "dotnet.defaultSolution": "Pendulum-Simulation-VR-main.slnx",
-=======
-    "dotnet.defaultSolution": "VR-PendulumSim.slnx",
->>>>>>> 12a6ab03a2ad0fbf8ee143711ed41b0ad189ef8a
-    "dotnet.enableWorkspaceBasedDevelopment": false
+    "<<<<<<<HEADdotnet.defaultSolution": "Pendulum-Simulation-VR-main.slnx",
+    "=======dotnet.defaultSolution": "VR-PendulumSim.slnx",
+    ">>>>>>>12a6ab03a2ad0fbf8ee143711ed41b0ad189ef8adotnet.enableWorkspaceBasedDevelopment": false,
+    "dotnet.defaultSolution": "Pendulum-Simulation-VR-main.slnx"
 }
