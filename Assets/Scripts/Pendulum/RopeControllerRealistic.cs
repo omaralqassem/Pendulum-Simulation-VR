@@ -63,19 +63,11 @@ public class RopeControllerRealistic : MonoBehaviour
         //Compare the current length of the rope with the wanted length
         DebugRopeLength();
 
-<<<<<<< HEAD
-        if (whatIsHangingFromTheRope != null)
-        {
-            //Move what is hanging from the rope to the end of the rope
-            whatIsHangingFromTheRope.position = allRopeSections[0].pos;
-        }
-=======
         //Move what is hanging from the rope to the end of the rope
         whatIsHangingFromTheRope.position = allRopeSections[0].pos;
 
         //Make what's hanging from the rope look at the next to last rope position to make it rotate with the rope
         whatIsHangingFromTheRope.LookAt(allRopeSections[1].pos);
->>>>>>> 12a6ab03a2ad0fbf8ee143711ed41b0ad189ef8a
     }
 
     void FixedUpdate()
@@ -274,11 +266,6 @@ public class RopeControllerRealistic : MonoBehaviour
             //end of the rope is attached to a box with a mass
             if (i == 0)
             {
-<<<<<<< HEAD
-                if (whatIsHangingFromTheRope != null && whatIsHangingFromTheRope.TryGetComponent<BucketPhysics>(out BucketPhysics bp))
-                {
-                    springMass += bp.GetTotalMass();
-=======
                 if (whatIsHangingFromTheRope.TryGetComponent<Rigidbody>(out Rigidbody rb))
                 {
                     springMass += rb.mass;
@@ -286,7 +273,6 @@ public class RopeControllerRealistic : MonoBehaviour
                 else
                 {
                     Debug.LogWarning($"No Rigidbody found on '{whatIsHangingFromTheRope.name}'. Please add a Rigidbody component in the inspector!");
->>>>>>> 12a6ab03a2ad0fbf8ee143711ed41b0ad189ef8a
                 }
             }
 
