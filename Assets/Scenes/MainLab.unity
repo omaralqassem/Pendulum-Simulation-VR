@@ -134,7 +134,7 @@ GameObject:
   - component: {fileID: 38937815}
   - component: {fileID: 38937814}
   m_Layer: 0
-  m_Name: Cube (2)
+  m_Name: FrontWall
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -537,7 +537,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: ba4814c9dfefa9048956dc798c383fbd, type: 3}
       propertyPath: m_Name
-      value: Table 1 (1)
+      value: RightTable
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: ba4814c9dfefa9048956dc798c383fbd, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -1047,7 +1051,11 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 1844617493404734, guid: 5573fbbed95ad6048a1584290e3b5b10, type: 3}
       propertyPath: m_Name
-      value: can tall
+      value: LeftGreenCan
+      objectReference: {fileID: 0}
+    - target: {fileID: 1844617493404734, guid: 5573fbbed95ad6048a1584290e3b5b10, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4731941170816802, guid: 5573fbbed95ad6048a1584290e3b5b10, type: 3}
       propertyPath: m_LocalScale.x
@@ -1327,7 +1335,7 @@ GameObject:
   - component: {fileID: 638045646}
   - component: {fileID: 638045645}
   m_Layer: 0
-  m_Name: Cube (1)
+  m_Name: LeftWall
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2340,7 +2348,11 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 8225168873297112583, guid: 08ee4c811cfe44445b6206d8638b0d72, type: 3}
       propertyPath: m_Name
-      value: Classic_fluorescent_lamp
+      value: LeftClassicFluorescentLamp
+      objectReference: {fileID: 0}
+    - target: {fileID: 8225168873297112583, guid: 08ee4c811cfe44445b6206d8638b0d72, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8225168873297474087, guid: 08ee4c811cfe44445b6206d8638b0d72, type: 3}
       propertyPath: m_LocalScale.x
@@ -2943,7 +2955,11 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 1844617493404734, guid: 5573fbbed95ad6048a1584290e3b5b10, type: 3}
       propertyPath: m_Name
-      value: can tall (1)
+      value: RightGreenCan
+      objectReference: {fileID: 0}
+    - target: {fileID: 1844617493404734, guid: 5573fbbed95ad6048a1584290e3b5b10, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4731941170816802, guid: 5573fbbed95ad6048a1584290e3b5b10, type: 3}
       propertyPath: m_LocalScale.x
@@ -3017,7 +3033,7 @@ GameObject:
   - component: {fileID: 899165806}
   - component: {fileID: 899165805}
   m_Layer: 0
-  m_Name: Cube
+  m_Name: RightWall
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -4156,13 +4172,14 @@ MonoBehaviour:
   bucketHeight: 0.4
   bucketRadius: 0.15
   bucketDamping: 1.2
-  paintDensityFactor: 0.002
   hasHole: 1
-  currentWaterMass: 2
+  currentPaintMass: 13
+  paintDensity: 1300
   holeRadius: 0.015
   dischargeCoefficient: 0.62
+  paintDensityFactor: 0.002
   holeLocalOffset: {x: 0.05, y: -0.2, z: 0}
-  waterExitDirectionLocal: {x: 0, y: -1, z: 0.5}
+  paintExitDirectionLocal: {x: 0, y: -1, z: 0.5}
 --- !u!1001 &1308542510
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -4173,7 +4190,11 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 8225168873297112583, guid: 08ee4c811cfe44445b6206d8638b0d72, type: 3}
       propertyPath: m_Name
-      value: Classic_fluorescent_lamp (1)
+      value: RightClassicFluorescentLamp
+      objectReference: {fileID: 0}
+    - target: {fileID: 8225168873297112583, guid: 08ee4c811cfe44445b6206d8638b0d72, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8225168873297474087, guid: 08ee4c811cfe44445b6206d8638b0d72, type: 3}
       propertyPath: m_LocalScale.x
@@ -4242,7 +4263,11 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 7015062584507807876, guid: 1e2941f20c0bcc942be4b7b1f12cd6d4, type: 3}
       propertyPath: m_Name
-      value: Small_roof_lamp
+      value: SmallRoofLamp
+      objectReference: {fileID: 0}
+    - target: {fileID: 7015062584507807876, guid: 1e2941f20c0bcc942be4b7b1f12cd6d4, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7015062584508228772, guid: 1e2941f20c0bcc942be4b7b1f12cd6d4, type: 3}
       propertyPath: m_LocalScale.x
@@ -4622,7 +4647,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: ba4814c9dfefa9048956dc798c383fbd, type: 3}
       propertyPath: m_Name
-      value: Table 1
+      value: LeftTable
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: ba4814c9dfefa9048956dc798c383fbd, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -4848,7 +4877,11 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 1700171439170184, guid: d1d8476b90274424b9420ef3c0257d94, type: 3}
       propertyPath: m_Name
-      value: can
+      value: RedCan
+      objectReference: {fileID: 0}
+    - target: {fileID: 1700171439170184, guid: d1d8476b90274424b9420ef3c0257d94, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4037152592001108, guid: d1d8476b90274424b9420ef3c0257d94, type: 3}
       propertyPath: m_LocalScale.x
