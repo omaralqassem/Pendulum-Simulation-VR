@@ -17,7 +17,7 @@ public class SPH : MonoBehaviour
     public struct GridCell
     {
         public uint start;
-        public uint count;
+        public uint end; 
     }
 
     [Header("Simulation Parameters")]
@@ -25,16 +25,25 @@ public class SPH : MonoBehaviour
     public int particleCount = 262144;
     public float smoothingLength = 0.1f;
     public float particleRadius = 0.015f;
+    
+    [Tooltip("Mass of an individual particle")]
+    public float particleMass = 1.0f;
     public float restDensity = 1000f;
     public float gasConstant = 1.5f;
     public float viscosity = 0.1f;
+    
+    [Tooltip("Creates a cohesive pull between fluid particles")]
+    public float surfaceTension = 10.0f;
+    [Tooltip("How strongly paint resists movement along the surface normals")]
+    public float adhesion = 10.0f;
+    
     public Vector3 gravity = new Vector3(0, -9.81f, 0);
     public float timeStep = 0.003f;
     public float damping = 0.99f;
 
     [Header("Collision Boundaries")]
     public Vector3 floorPosition = Vector3.zero;
-    public float floorRestitution = 0.3f;
+    public float floorRestitution = 0.3f; 
     public Vector3 boundaryPosition = Vector3.zero;
     public float boundaryRadius = 2.0f;
     public float boundaryRestitution = 0.3f;
@@ -67,7 +76,7 @@ public class SPH : MonoBehaviour
     private int kernelEmit;
 
     private int currentEmitRingIndex = 0;
-
+    
     void OnEnable()
     {
         if (!Mathf.IsPowerOfTwo(particleCount))
@@ -90,7 +99,6 @@ public class SPH : MonoBehaviour
         int particleSize = System.Runtime.InteropServices.Marshal.SizeOf<Particle>();
         int gridCellSize = System.Runtime.InteropServices.Marshal.SizeOf<GridCell>();
 
-        // Using GraphicsBuffer.Target.Structured for compute buffer equivalent behavior
         particleBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, particleCount, particleSize);
         sortedIndicesBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, particleCount, sizeof(uint));
         tempSortedIndicesBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, particleCount, sizeof(uint));
@@ -108,7 +116,7 @@ public class SPH : MonoBehaviour
             particles[i].density = restDensity;
             particles[i].pressure = 0;
             particles[i].lifetime = 0;
-            particles[i].active = 0;
+            particles[i].active = 1;
             indices[i] = (uint)i;
         }
         particleBuffer.SetData(particles);
@@ -150,9 +158,12 @@ public class SPH : MonoBehaviour
         sphComputeShader.SetInt("particleCount", particleCount);
         sphComputeShader.SetFloat("smoothingLength", smoothingLength);
         sphComputeShader.SetFloat("particleRadius", particleRadius);
+        sphComputeShader.SetFloat("particleMass", particleMass);
         sphComputeShader.SetFloat("restDensity", restDensity);
         sphComputeShader.SetFloat("gasConstant", gasConstant);
         sphComputeShader.SetFloat("viscosity", viscosity);
+        sphComputeShader.SetFloat("surfaceTension", surfaceTension);
+        sphComputeShader.SetFloat("adhesion", adhesion);
         sphComputeShader.SetVector("gravity", gravity);
         sphComputeShader.SetFloat("timeStep", timeStep);
         sphComputeShader.SetFloat("damping", damping);
@@ -177,8 +188,10 @@ public class SPH : MonoBehaviour
 
         int threadGroups = Mathf.CeilToInt(count / 64f);
         sphComputeShader.Dispatch(kernelEmit, threadGroups, 1, 1);
+        
 
         currentEmitRingIndex = (currentEmitRingIndex + count) % particleCount;
+        Debug.Log("Dispatching Emit GPU");
     }
 
     void FixedUpdate()
