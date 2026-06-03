@@ -72,5 +72,5 @@
     "<<<<<<<HEADdotnet.defaultSolution": "Pendulum-Simulation-VR-main.slnx",
     "=======dotnet.defaultSolution": "VR-PendulumSim.slnx",
     ">>>>>>>12a6ab03a2ad0fbf8ee143711ed41b0ad189ef8adotnet.enableWorkspaceBasedDevelopment": false,
-    "dotnet.defaultSolution": "Pendulum-Simulation-VR-main.slnx"
+    "dotnet.defaultSolution": "Pendulum-Simulation-VR.slnx"
 }

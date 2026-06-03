@@ -261,16 +261,12 @@ public class RopeControllerRealistic : MonoBehaviour
             //The mass attached to this spring
             float springMass = m;
 
-            //end of the rope is attached to a box with a mass
+           
             if (i == 0)
             {
-                if (whatIsHangingFromTheRope.TryGetComponent<Rigidbody>(out Rigidbody rb))
+                if (whatIsHangingFromTheRope.TryGetComponent<BucketPhysics>(out BucketPhysics bp))
                 {
-                    springMass += rb.mass;
-                }
-                else
-                {
-                    Debug.LogWarning($"No Rigidbody found on '{whatIsHangingFromTheRope.name}'. Please add a Rigidbody component in the inspector!");
+                    springMass += bp.GetTotalMass();
                 }
             }
 

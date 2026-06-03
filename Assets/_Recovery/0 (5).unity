@@ -1243,7 +1243,6 @@ GameObject:
   m_Component:
   - component: {fileID: 491410541}
   - component: {fileID: 491410540}
-  - component: {fileID: 491410542}
   m_Layer: 0
   m_Name: SPHSim
   m_TagString: Untagged
@@ -1263,7 +1262,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d2b16779587e8ff45a050ff83109c18c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SPH
-  particleCount: 262144
+  particleCount: 16384
   smoothingLength: 0.15
   particleRadius: 0.025
   restDensity: 1000
@@ -1274,10 +1273,10 @@ MonoBehaviour:
   damping: 0.99
   floorPosition: {x: 0, y: -3, z: 0}
   floorRestitution: 0.2
-  boundaryPosition: {x: 0, y: 2, z: 0}
-  boundaryRadius: 3
+  boundaryPosition: {x: 0, y: 0, z: 0}
+  boundaryRadius: 4
   boundaryRestitution: 0.2
-  particleMesh: {fileID: 0}
+  particleMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
   particleMaterial: {fileID: 2100000, guid: 6b8a3ac68409f2f4690681e960f2f7e8, type: 2}
   meshSubMeshIndex: 0
   gridResolution: 64
@@ -1296,18 +1295,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 45, z: 0}
---- !u!114 &491410542
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 491410539}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 15e166ff23d6aa54cb0d3dcaf3992d95, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SPHMeshGenerator
 --- !u!1 &638045644
 GameObject:
   m_ObjectHideFlags: 0
@@ -4147,14 +4134,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BucketPhysics
   ropeController: {fileID: 1736264499}
-  fluidSystem: {fileID: 491410540}
+  fluidSystem: {fileID: 0}
   dryBucketMass: 2
   bucketHeight: 0.4
   bucketRadius: 0.15
   bucketDamping: 1.2
   paintDensityFactor: 0.002
   hasHole: 1
-  currentWaterMass: 2
+  currentWaterMass: 4
   holeRadius: 0.015
   dischargeCoefficient: 0.62
   holeLocalOffset: {x: 0.05, y: -0.2, z: 0}
@@ -4302,6 +4289,54 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 8bde42c222a620b4a9b6384f40245ed8, type: 3}
   m_PrefabInstance: {fileID: 972414266}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1719266333
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1719266335}
+  - component: {fileID: 1719266334}
+  m_Layer: 0
+  m_Name: Particle_Emitter
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1719266334
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1719266333}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a8435b022769cfd42a6eb33fb0b1564c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SPHEmitter
+  sphSystem: {fileID: 491410540}
+  emitRate: 128
+  emitVelocity: 5
+  autoEmit: 1
+--- !u!4 &1719266335
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1719266333}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 18.6531, y: 0.005, z: 23.58936}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1736264497
 GameObject:
   m_ObjectHideFlags: 0
@@ -5461,3 +5496,4 @@ SceneRoots:
   - {fileID: 1334081516}
   - {fileID: 1828742862}
   - {fileID: 491410541}
+  - {fileID: 1719266335}
