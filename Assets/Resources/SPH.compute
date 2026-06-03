@@ -1,372 +1,332 @@
-#pragma kernel HashParticles
-#pragma kernel BitonicSort
-#pragma kernel BuildGrid
-#pragma kernel DensityPressure
-#pragma kernel Forces
-#pragma kernel Integrate
-#pragma kernel EmitParticles
 #pragma kernel ClearGrid
-
-#define THREAD_GROUP_SIZE 256
-#define PI 3.14159265359f
+#pragma kernel HashParticles
+#pragma kernel BitonicSortStep
+#pragma kernel BuildGridIndices
+#pragma kernel CalculateDensityPressure
+#pragma kernel CalculateForces
+#pragma kernel Integrate
 
 struct Particle
 {
     float3 position;
     float3 velocity;
+    float3 force;
     float density;
     float pressure;
-    float lifetime;
-    uint active;
+    int isActive;
 };
 
 struct GridCell
 {
-    uint start;
-    uint end;
+    int startIndex;
+    int endIndex;
 };
 
+// Buffers
 RWStructuredBuffer<Particle> particles;
-RWStructuredBuffer<uint> sortedIndices;
-RWStructuredBuffer<uint> gridHashes;
-RWStructuredBuffer<GridCell> gridCells;
-RWStructuredBuffer<uint> sortingKeys;
+RWStructuredBuffer<uint2> particleHashes; // x = hash, y = original index
+RWStructuredBuffer<GridCell> grid;
 
-StructuredBuffer<uint> srcKeys;
-RWStructuredBuffer<uint> dstKeys;
-StructuredBuffer<uint> srcIndices;
-RWStructuredBuffer<uint> dstIndices;
-
-int particleCount;
-int gridResolution;
-float smoothingLength;
-float particleRadius;
-float particleMass;
-float restDensity;
-float gasConstant;
-float viscosity;
-float surfaceTension;
-float adhesion;
-float3 gravity;
-float timeStep;
-float damping;
-float3 floorPosition;
-float floorRestitution;
-float3 boundaryPosition;
-float boundaryRadius;
-float boundaryRestitution;
-
-int emitCount;
-float3 emitPosition;
-float3 emitVelocity;
-int emitStartIndex;
-
-int stage;
-int step;
-
-int3 GetGridCoord(float3 pos)
+// Parameters
+cbuffer Params
 {
-    float3 size = boundaryRadius * 2.0;
-    float3 minBounds = boundaryPosition - float3(boundaryRadius, boundaryRadius, boundaryRadius);
-    float3 normPos = (pos - minBounds) / size;
-    return clamp((int3)(normPos * (float)gridResolution), 0, gridResolution - 1);
+    int maxParticles;
+    int activeParticles;
+    float deltaTime;
+    float smoothingLength;
+    float smoothingLengthSq;
+    float particleMass;
+    float restDensity;
+    float gasConstant;
+    float viscosity;
+    float particleRadius;
+    float boundaryDamping;
+    float3 gravity;
+    float3 boundaryMin;
+    float3 boundaryMax;
+    int3 gridDimensions;
+    float cellSize;
+    int bitonicBlockSize;
+    int bitonicStepSize;
+};
+
+#define PI 3.14159265359
+
+float Poly6Kernel(float rSq)
+{
+    if (rSq >= smoothingLengthSq) return 0.0;
+    float diff = smoothingLengthSq - rSq;
+    return 315.0 / (64.0 * PI * pow(smoothingLength, 9.0)) * diff * diff * diff;
 }
 
-uint GetGridHash(int3 coord)
+float3 SpikyGradient(float3 r, float rLen)
 {
-    return (uint)(coord.x + coord.y * gridResolution + coord.z * gridResolution * gridResolution);
+    if (rLen >= smoothingLength || rLen < 0.0001) return float3(0, 0, 0);
+    float diff = smoothingLength - rLen;
+    return -45.0 / (PI * pow(smoothingLength, 6.0)) * diff * diff * (r / rLen);
 }
 
-float Poly6Kernel(float r, float h)
+float ViscosityLaplacian(float rLen)
 {
-    if (r > h || r < 0.0) return 0.0;
-    float h2 = h * h;
-    float r2 = r * r;
-    float x = h2 - r2;
-    return (315.0 / (64.0 * PI * pow(h, 9))) * x * x * x;
+    if (rLen >= smoothingLength) return 0.0;
+    return 45.0 / (PI * pow(smoothingLength, 6.0)) * (smoothingLength - rLen);
 }
 
-float3 SpikyKernelGradient(float3 diff, float r, float h)
+int GridHash(int3 gridPos)
 {
-    if (r > h || r < 0.0001) return float3(0, 0, 0);
-    float x = h - r;
-    float coeff = -45.0 / (PI * pow(h, 6));
-    return (coeff * x * x) * (diff / r);
+    const int p1 = 73856093;
+    const int p2 = 19349663;
+    const int p3 = 83492791;
+    
+    gridPos = clamp(gridPos, int3(0, 0, 0), gridDimensions - 1);
+    int hash = (gridPos.x * p1) ^ (gridPos.y * p2) ^ (gridPos.z * p3);
+    int gridSize = gridDimensions.x * gridDimensions.y * gridDimensions.z;
+    return abs(hash) % gridSize;
 }
 
-float ViscosityKernelLaplacian(float r, float h)
+int3 GetGridPosition(float3 worldPos)
 {
-    if (r > h) return 0.0;
-    return (45.0 / (PI * pow(h, 6))) * (h - r);
+    float3 relativePos = (worldPos - boundaryMin) / cellSize;
+    return int3(floor(relativePos));
 }
 
-[numthreads(THREAD_GROUP_SIZE, 1, 1)]
+[numthreads(256, 1, 1)]
+void ClearGrid(uint3 id : SV_DispatchThreadID)
+{
+    int gridSize = gridDimensions.x * gridDimensions.y * gridDimensions.z;
+    if (id.x >= gridSize) return;
+    
+    grid[id.x].startIndex = -1;
+    grid[id.x].endIndex = -1;
+}
+
+[numthreads(256, 1, 1)]
 void HashParticles(uint3 id : SV_DispatchThreadID)
 {
-    uint i = id.x;
-    if (i >= (uint)particleCount) return;
-
-    sortedIndices[i] = i;
-
-    Particle p = particles[i];
-    if (p.active == 0)
-    {
-        gridHashes[i] = 0xFFFFFFFF;
-        sortingKeys[i] = 0xFFFFFFFF;
-        return;
-    }
-
-    int3 coord = GetGridCoord(p.position);
-    uint hash = GetGridHash(coord);
-    gridHashes[i] = hash;
-    sortingKeys[i] = hash;
-}
-
-[numthreads(512, 1, 1)]
-void BitonicSort(uint3 id : SV_DispatchThreadID)
-{
-    uint i = id.x;
-    if (i >= (uint)particleCount) return;
-
-    uint posB = i ^ (1u << step);
+    if (id.x >= maxParticles) return;
     
-    if(posB >= (uint)particleCount)
+    if (particles[id.x].isActive == 1)
     {
-        dstKeys[i] = srcKeys[i];
-        dstIndices[i] = srcIndices[i];
-        return;
-    }
-
-    uint keyA = srcKeys[i];
-    uint keyB = srcKeys[posB];
-    uint idxA = srcIndices[i];
-    uint idxB = srcIndices[posB];
-
-    bool isLower = i < posB;
-    bool shouldSwap = (keyA > keyB) == ((i & (1u << stage)) == 0);
-
-    if (shouldSwap)
-    {
-        dstKeys[i] = isLower ? keyB : keyA;
-        dstIndices[i] = isLower ? idxB : idxA;
+        int3 gridPos = GetGridPosition(particles[id.x].position);
+        uint hash = GridHash(gridPos);
+        particleHashes[id.x] = uint2(hash, id.x);
     }
     else
     {
-        dstKeys[i] = isLower ? keyA : keyB;
-        dstIndices[i] = isLower ? idxA : idxB;
+        particleHashes[id.x] = uint2(0xFFFFFFFF, id.x); // Inactive particles to end
     }
 }
 
-[numthreads(THREAD_GROUP_SIZE, 1, 1)]
-void BuildGrid(uint3 id : SV_DispatchThreadID)
+[numthreads(256, 1, 1)]
+void BitonicSortStep(uint3 id : SV_DispatchThreadID)
 {
     uint i = id.x;
-    if (i >= (uint)particleCount) return;
-
-    uint idx = sortedIndices[i];
-    uint hash = gridHashes[idx];
-
-    if (hash == 0xFFFFFFFF) return;
-
-    uint prevHash = (i == 0) ? 0xFFFFFFFF : gridHashes[sortedIndices[i - 1]];
-    uint nextHash = (i == (uint)particleCount - 1) ? 0xFFFFFFFF : gridHashes[sortedIndices[i + 1]];
-
-    if (hash != prevHash)
-    {
-        gridCells[hash].start = i;
-    }
-
-    if (hash != nextHash)
-    {
-        gridCells[hash].end = i + 1;
-    }
-}
-
-[numthreads(THREAD_GROUP_SIZE, 1, 1)]
-void DensityPressure(uint3 id : SV_DispatchThreadID)
-{
-    uint i = id.x;
-    if (i >= (uint)particleCount) return;
-
-    uint idx = sortedIndices[i];
-    Particle p = particles[idx];
-
-    if (p.active == 0) return;
-
-    float density = 0.0;
-    float h = smoothingLength;
-    int3 coord = GetGridCoord(p.position);
+    if (i >= maxParticles) return;
     
-    for (int dx = -1; dx <= 1; dx++)
+    uint j = i ^ bitonicStepSize;
+    
+    if (j > i)
     {
-        for (int dy = -1; dy <= 1; dy++)
+        uint2 keyA = particleHashes[i];
+        uint2 keyB = particleHashes[j];
+        
+        bool ascending = ((i & bitonicBlockSize) == 0);
+        
+        if ((keyA.x > keyB.x) == ascending)
         {
-            for (int dz = -1; dz <= 1; dz++)
-            {
-                int3 nCoord = coord + int3(dx, dy, dz);
-                if(nCoord.x < 0 || nCoord.x >= gridResolution ||
-                   nCoord.y < 0 || nCoord.y >= gridResolution ||
-                   nCoord.z < 0 || nCoord.z >= gridResolution) continue;
-
-                uint neighborHash = GetGridHash(nCoord);
-                GridCell cell = gridCells[neighborHash];
-
-                for (uint j = cell.start; j < cell.end; j++)
-                {
-                    uint nIdx = sortedIndices[j];
-                    Particle pNeighbor = particles[nIdx];
-                    if (pNeighbor.active == 0) continue;
-
-                    float3 diff = p.position - pNeighbor.position;
-                    float r = length(diff);
-                    
-                    density += particleMass * Poly6Kernel(r, h);
-                }
-            }
+            particleHashes[i] = keyB;
+            particleHashes[j] = keyA;
         }
     }
-
-    particles[idx].density = max(density, restDensity);
-    particles[idx].pressure = gasConstant * (particles[idx].density - restDensity);
 }
 
-[numthreads(THREAD_GROUP_SIZE, 1, 1)]
-void Forces(uint3 id : SV_DispatchThreadID)
+[numthreads(256, 1, 1)]
+void BuildGridIndices(uint3 id : SV_DispatchThreadID)
 {
-    uint i = id.x;
-    if (i >= (uint)particleCount) return;
-
-    uint idx = sortedIndices[i];
-    Particle p = particles[idx];
-    if (p.active == 0) return;
-
-    float3 pressureForce = float3(0, 0, 0);
-    float3 viscosityForce = float3(0, 0, 0);
-    float3 tensionForce = float3(0, 0, 0);
+    if (id.x >= maxParticles) return;
     
-    float h = smoothingLength;
-    int3 coord = GetGridCoord(p.position);
-
-    for (int dx = -1; dx <= 1; dx++)
+    uint hash = particleHashes[id.x].x;
+    if (hash == 0xFFFFFFFF) return; 
+    
+    uint prevHash = (id.x == 0) ? 0xFFFFFFFF : particleHashes[id.x - 1].x;
+    
+    if (id.x == 0 || hash != prevHash)
     {
-        for (int dy = -1; dy <= 1; dy++)
+        grid[hash].startIndex = id.x;
+        if (id.x > 0 && prevHash != 0xFFFFFFFF)
         {
-            for (int dz = -1; dz <= 1; dz++)
+            grid[prevHash].endIndex = id.x;
+        }
+    }
+    
+    if (id.x == maxParticles - 1 || particleHashes[id.x + 1].x == 0xFFFFFFFF)
+    {
+        grid[hash].endIndex = id.x + 1;
+    }
+}
+
+[numthreads(256, 1, 1)]
+void CalculateDensityPressure(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= maxParticles) return;
+    
+    uint originalIndex = particleHashes[id.x].y;
+    if (particles[originalIndex].isActive == 0) return;
+    
+    float3 pos = particles[originalIndex].position;
+    float density = 0.0;
+    
+    int3 gridPos = GetGridPosition(pos);
+    
+    for (int z = -1; z <= 1; z++)
+    {
+        for (int y = -1; y <= 1; y++)
+        {
+            for (int x = -1; x <= 1; x++)
             {
-                int3 nCoord = coord + int3(dx, dy, dz);
-                if(nCoord.x < 0 || nCoord.x >= gridResolution ||
-                   nCoord.y < 0 || nCoord.y >= gridResolution ||
-                   nCoord.z < 0 || nCoord.z >= gridResolution) continue;
-
-                GridCell cell = gridCells[GetGridHash(nCoord)];
+                int3 neighborGrid = gridPos + int3(x, y, z);
+                if (any(neighborGrid < 0) || any(neighborGrid >= gridDimensions)) continue;
                 
-                for (uint j = cell.start; j < cell.end; j++)
+                int hash = GridHash(neighborGrid);
+                int start = grid[hash].startIndex;
+                int end = grid[hash].endIndex;
+                
+                if (start == -1) continue;
+                
+                for (int i = start; i < end; i++)
                 {
-                    uint nIdx = sortedIndices[j];
-                    if (idx == nIdx) continue;
-
-                    Particle pNeighbor = particles[nIdx];
-                    if (pNeighbor.active == 0) continue;
-
-                    float3 diff = p.position - pNeighbor.position;
-                    float r = length(diff);
-                    if (r > 0.0 && r < h)
+                    uint neighborOriginalIndex = particleHashes[i].y;
+                    if (particles[neighborOriginalIndex].isActive == 0) continue;
+                    
+                    float3 neighborPos = particles[neighborOriginalIndex].position;
+                    float3 diff = pos - neighborPos;
+                    float rSq = dot(diff, diff);
+                    
+                    if (rSq < smoothingLengthSq)
                     {
-                        pressureForce -= particleMass * (p.pressure / (p.density * p.density) + pNeighbor.pressure / (pNeighbor.density * pNeighbor.density)) 
-                                         * SpikyKernelGradient(diff, r, h) * restDensity;
-
-                        viscosityForce += particleMass * viscosity * (pNeighbor.velocity - p.velocity) / pNeighbor.density * ViscosityKernelLaplacian(r, h);
-                        
-                        float3 dir = diff / r;
-                        tensionForce -= particleMass * surfaceTension * dir * Poly6Kernel(r, h);
+                        density += particleMass * Poly6Kernel(rSq);
                     }
                 }
             }
         }
     }
-
-    particles[idx].velocity += (pressureForce + viscosityForce + tensionForce) * timeStep;
+    
+    particles[originalIndex].density = max(density, restDensity);
+    particles[originalIndex].pressure = gasConstant * (particles[originalIndex].density - restDensity);
 }
 
-[numthreads(THREAD_GROUP_SIZE, 1, 1)]
+[numthreads(256, 1, 1)]
+void CalculateForces(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= maxParticles) return;
+    
+    uint originalIndex = particleHashes[id.x].y;
+    if (particles[originalIndex].isActive == 0) return;
+    
+    float3 pos = particles[originalIndex].position;
+    float3 vel = particles[originalIndex].velocity;
+    float density = particles[originalIndex].density;
+    float pressure = particles[originalIndex].pressure;
+    
+    float3 pressureForce = float3(0, 0, 0);
+    float3 viscosityForce = float3(0, 0, 0);
+    
+    int3 gridPos = GetGridPosition(pos);
+    
+    for (int z = -1; z <= 1; z++)
+    {
+        for (int y = -1; y <= 1; y++)
+        {
+            for (int x = -1; x <= 1; x++)
+            {
+                int3 neighborGrid = gridPos + int3(x, y, z);
+                if (any(neighborGrid < 0) || any(neighborGrid >= gridDimensions)) continue;
+                
+                int hash = GridHash(neighborGrid);
+                int start = grid[hash].startIndex;
+                int end = grid[hash].endIndex;
+                
+                if (start == -1) continue;
+                
+                for (int i = start; i < end; i++)
+                {
+                    uint neighborOriginalIndex = particleHashes[i].y;
+                    if (neighborOriginalIndex == originalIndex) continue;
+                    if (particles[neighborOriginalIndex].isActive == 0) continue;
+                    
+                    float3 neighborPos = particles[neighborOriginalIndex].position;
+                    float3 neighborVel = particles[neighborOriginalIndex].velocity;
+                    float neighborDensity = particles[neighborOriginalIndex].density;
+                    float neighborPressure = particles[neighborOriginalIndex].pressure;
+                    
+                    float3 diff = pos - neighborPos;
+                    float rLen = length(diff);
+                    
+                    if (rLen < smoothingLength && rLen > 0.0001)
+                    {
+                        pressureForce += -particleMass * (pressure / (density * density) + 
+                                        neighborPressure / (neighborDensity * neighborDensity)) * 
+                                        SpikyGradient(diff, rLen);
+                        
+                        viscosityForce += viscosity * particleMass * 
+                                         (neighborVel - vel) / neighborDensity * 
+                                         ViscosityLaplacian(rLen);
+                    }
+                }
+            }
+        }
+    }
+    
+    float3 gravityForce = gravity * density;
+    particles[originalIndex].force = (pressureForce + viscosityForce + gravityForce);
+}
+
+[numthreads(256, 1, 1)]
 void Integrate(uint3 id : SV_DispatchThreadID)
 {
-    uint i = id.x;
-    if (i >= (uint)particleCount) return;
-
-    if (particles[i].active == 0) return;
-
-    particles[i].velocity += gravity * timeStep;
-    particles[i].velocity *= damping;
-
-    float distToFloor = particles[i].position.y - floorPosition.y;
-    if (distToFloor <= particleRadius * 2.0)
-    {
-        float3 wallNormal = float3(0, 1, 0);
-        float vn = dot(particles[i].velocity, wallNormal);
-        particles[i].velocity -= wallNormal * vn * saturate(adhesion * timeStep);
-    }
-
-    float3 relPos = particles[i].position - boundaryPosition;
-    float distToCenter = length(relPos);
-    if (distToCenter > 0.0001)
-    {
-        float distToBoundary = boundaryRadius - distToCenter;
-        if (distToBoundary <= particleRadius * 2.0)
-        {
-            float3 wallNormal = -relPos / distToCenter; 
-            float vn = dot(particles[i].velocity, wallNormal);
-            particles[i].velocity -= wallNormal * vn * saturate(adhesion * timeStep);
-        }
-    }
-
-    particles[i].position += particles[i].velocity * timeStep;
-
-    if (particles[i].position.y < floorPosition.y + particleRadius)
-    {
-        particles[i].position.y = floorPosition.y + particleRadius;
-        if (particles[i].velocity.y < 0.0)
-        {
-            particles[i].velocity.y *= -floorRestitution;
-        }
-    }
-
-    relPos = particles[i].position - boundaryPosition; 
-    float dist = length(relPos);
-    float maxDist = boundaryRadius - particleRadius;
-    if (dist > maxDist)
-    {
-        float3 norm = relPos / dist;
-        particles[i].position = boundaryPosition + norm * maxDist;
-        
-        float vDotN = dot(particles[i].velocity, norm);
-        if (vDotN > 0.0)
-        {
-            particles[i].velocity -= (1.0 + boundaryRestitution) * vDotN * norm;
-        }
-    }
-}
-
-[numthreads(64, 1, 1)]
-void EmitParticles(uint3 id : SV_DispatchThreadID)
-{
-    if (id.x >= (uint)emitCount) return;
+    if (id.x >= maxParticles) return;
+    if (particles[id.x].isActive == 0) return;
     
-    uint index = (emitStartIndex + id.x) % particleCount;
+    float3 acceleration = particles[id.x].force / particles[id.x].density;
+    particles[id.x].velocity += acceleration * deltaTime;
+    particles[id.x].position += particles[id.x].velocity * deltaTime;
     
-    particles[index].position = emitPosition + (float3((id.x % 3) - 1, (id.x % 2) - 1, (id.x % 5) - 2) * 0.005);
-    particles[index].velocity = emitVelocity;
-    particles[index].active = 1;
-    particles[index].lifetime = 0.0;
-    particles[index].density = restDensity;
-    particles[index].pressure = 0.0;
-
+    float3 pos = particles[id.x].position;
+    float3 vel = particles[id.x].velocity;
+    
+    if (pos.x < boundaryMin.x + particleRadius)
+    {
+        pos.x = boundaryMin.x + particleRadius;
+        vel.x *= -boundaryDamping;
+    }
+    else if (pos.x > boundaryMax.x - particleRadius)
+    {
+        pos.x = boundaryMax.x - particleRadius;
+        vel.x *= -boundaryDamping;
+    }
+    
+    if (pos.y < boundaryMin.y + particleRadius)
+    {
+        pos.y = boundaryMin.y + particleRadius;
+        vel.y *= -boundaryDamping;
+    }
+    else if (pos.y > boundaryMax.y - particleRadius)
+    {
+        pos.y = boundaryMax.y - particleRadius;
+        vel.y *= -boundaryDamping;
+    }
+    
+    if (pos.z < boundaryMin.z + particleRadius)
+    {
+        pos.z = boundaryMin.z + particleRadius;
+        vel.z *= -boundaryDamping;
+    }
+    else if (pos.z > boundaryMax.z - particleRadius)
+    {
+        pos.z = boundaryMax.z - particleRadius;
+        vel.z *= -boundaryDamping;
+    }
+    
+    particles[id.x].position = pos;
+    particles[id.x].velocity = vel;
 }
-
-[numthreads(THREAD_GROUP_SIZE, 1, 1)]
-void ClearGrid(uint3 id : SV_DispatchThreadID)
-{
-    uint numCells = (uint)(gridResolution * gridResolution * gridResolution);
-    if (id.x >= numCells) return;
-    gridCells[id.x].start = 0;
-    gridCells[id.x].end = 0; }

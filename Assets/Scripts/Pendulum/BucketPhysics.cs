@@ -3,7 +3,7 @@ using UnityEngine;
 public class BucketPhysics : MonoBehaviour
 {
     public RopeControllerRealistic ropeController;
-    public SPH fluidSystem;
+    public SPHSystem fluidSystem;
 
     [Header("Bucket Properties")]
     public float dryBucketMass = 2.0f;       
