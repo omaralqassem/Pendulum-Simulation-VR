@@ -1319,15 +1319,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 56cc445fa9cdef54a9bc8c6c85ddfede, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GPUSPH3D
-  bucketTransform: {fileID: 1632913531}
-  bucketPhysics: {fileID: 984022702}
   sphCompute: {fileID: 7200000, guid: 3e5e0c30a8986fd469a02b9c6b94541c, type: 3}
+  sortingCompute: {fileID: 7200000, guid: 021b0b39f4651c84598d482504eb68af, type: 3}
   renderMaterial: {fileID: 2100000, guid: 936d681080bf1a245aed340a7029a75e, type: 2}
   particleMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
-  boxSize: {x: 20, y: 40, z: 20}
+  boxSize: {x: 8, y: 15, z: 8}
   boundaryDamping: 0.4
-  maxParticles: 1000000
-  particleRadius: 0.5
+  maxParticles: 100000
+  particleRadius: 0.12
   gravity: {x: 0, y: -9.81, z: 0}
   maxParticleLifetime: 8
   smoothingRadius: 0.2
@@ -4213,12 +4212,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BucketPhysics
   ropeController: {fileID: 1736264499}
   fluidSystem: {fileID: 471223924}
-  dryBucketMass: 20
+  dryBucketMass: 15
   bucketHeight: 0.4
   bucketRadius: 0.15
   bucketDamping: 1.2
   hasHole: 1
-  currentPaintMass: 17
+  currentPaintMass: 13
   paintDensity: 1300
   holeRadius: 0.015
   dischargeCoefficient: 0.62

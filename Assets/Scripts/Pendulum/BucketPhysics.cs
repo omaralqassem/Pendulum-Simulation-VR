@@ -11,7 +11,7 @@ public class BucketPhysics : MonoBehaviour
     public float bucketRadius = 0.15f;       
     public float bucketDamping = 0.5f;       
     
-    [Header("Paint Properties")]
+    [Header("Paint Properties")]    
     public bool hasHole = true;
     public float currentPaintMass = 13.0f;   
     public float paintDensity = 1300f;      
@@ -90,7 +90,6 @@ public class BucketPhysics : MonoBehaviour
         Vector3 localUpWorld = bucketRotation * Vector3.up;
         float alignment = Mathf.Max(0.01f, Vector3.Dot(localUpWorld, -effAccDir));
         
-        // As the bucket tilts, the hydrostatic pressure head above the hole scales with the alignment
         float adjustedHead = paintHeight * alignment;
         float effectiveG = effAcc.magnitude;
 
@@ -109,24 +108,8 @@ public class BucketPhysics : MonoBehaviour
         
         currentPaintMass -= massToDrain;
 
-        if (fluidSystem != null && massToDrain > 0f)
-        {
-            int particlesToSpawn = Mathf.Max(1, Mathf.RoundToInt(massToDrain / paintDensityFactor));
-            Vector3 worldHolePos = transform.TransformPoint(holeLocalOffset);
-            Vector3 worldExitDir = (bucketRotation * paintExitDirectionLocal).normalized;
-            
-            // Linear velocity of the bucket
-            Vector3 bucketVelocity = ropeController.allRopeSections[0].vel;
-            
-            // Tangential velocity of the hole due to rotation: w x r
-            Vector3 worldAngularVel = bucketRotation * angularVelocity;
-            Vector3 holeRadiusVector = worldHolePos - transform.position;
-            Vector3 rotationalVelocityAtHole = Vector3.Cross(worldAngularVel, holeRadiusVector);
-
-            Vector3 worldExitVelocity = (worldExitDir * exitVelocity) + bucketVelocity + rotationalVelocityAtHole;
-
-            fluidSystem.EmitParticles(worldHolePos, worldExitVelocity, particlesToSpawn);
-        }
+        // Note: Manual particle emission (EmitParticles) was removed here because 
+        // the SPH compute shader now handles particles physically falling out of the hole!
 
         float thrustMagnitude = massFlowRate * exitVelocity;
         Vector3 exitDirNormalized = paintExitDirectionLocal.normalized;

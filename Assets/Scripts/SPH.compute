@@ -1,0 +1,215 @@
+#pragma kernel CSClearGrid
+#pragma kernel CSBuildGrid
+#pragma kernel CSDensityPressure
+#pragma kernel CSForces
+#pragma kernel CSIntegrate
+
+struct Particle {
+    float3 position;
+    float3 velocity;
+    float3 force;
+    float density;
+    float pressure;
+    float lifetime;
+};
+
+RWStructuredBuffer<Particle> Particles;
+RWStructuredBuffer<uint> GridCounters;
+RWStructuredBuffer<uint> GridCells;
+
+#define HASH_DIM 128 
+#define MAX_PARTICLES_PER_CELL 48 
+
+uint numParticles;
+float smoothingRadius;
+float restDensity;
+float gasConstant;
+float viscosity;
+float particleMass;
+float3 gravity;
+float3 boxSize;
+float3 boxCenter;
+float boundaryDamping;
+float particleRadius;
+float deltaTime;
+float poly6;
+float spikyGrad;
+float viscLap;
+float cellSize;
+
+float4x4 bucketWorldToLocal;
+float4x4 bucketLocalToWorld;
+float bucketRadiusCS;
+float bucketHeightCS;
+float holeRadiusCS;
+float3 holeLocalPos;
+
+uint GetHash(float3 pos) {
+    int3 cell = (int3)floor(pos / cellSize);
+    uint3 wrapped = (uint3)(cell & (HASH_DIM - 1));
+    return wrapped.x + (wrapped.y * HASH_DIM) + (wrapped.z * HASH_DIM * HASH_DIM);
+}
+
+[numthreads(256, 1, 1)]
+void CSClearGrid(uint3 id : SV_DispatchThreadID) {
+    if (id.x >= 2097152) return; 
+    GridCounters[id.x] = 0;
+}
+
+[numthreads(256, 1, 1)]
+void CSBuildGrid(uint3 id : SV_DispatchThreadID) {
+    if (id.x >= numParticles || Particles[id.x].lifetime <= 0) return;
+
+    uint hash = GetHash(Particles[id.x].position);
+    uint count;
+    
+    InterlockedAdd(GridCounters[hash], 1, count);
+    
+    if (count < MAX_PARTICLES_PER_CELL) {
+        GridCells[hash * MAX_PARTICLES_PER_CELL + count] = id.x;
+    }
+}
+
+[numthreads(256, 1, 1)]
+void CSDensityPressure(uint3 id : SV_DispatchThreadID) {
+    if (id.x >= numParticles || Particles[id.x].lifetime <= 0) return;
+
+    float3 posI = Particles[id.x].position;
+    float densitySum = 0.0;
+    float h2 = smoothingRadius * smoothingRadius;
+
+    int3 cellIndex = (int3)floor(posI / cellSize);
+
+    for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
+            for (int z = -1; z <= 1; z++) {
+                uint3 wrapped = (uint3)((cellIndex + int3(x, y, z)) & (HASH_DIM - 1));
+                uint hash = wrapped.x + (wrapped.y * HASH_DIM) + (wrapped.z * HASH_DIM * HASH_DIM);
+                
+                uint count = min(GridCounters[hash], MAX_PARTICLES_PER_CELL);
+                for (uint k = 0; k < count; k++) {
+                    uint j = GridCells[hash * MAX_PARTICLES_PER_CELL + k];
+                    
+                    float3 diff = posI - Particles[j].position;
+                    float r2 = dot(diff, diff);
+
+                    if (r2 < h2) {
+                        densitySum += particleMass * poly6 * pow(h2 - r2, 3);
+                    }
+                }
+            }
+        }
+    }
+
+    Particles[id.x].density = max(densitySum, 0.01);
+    Particles[id.x].pressure = gasConstant * (Particles[id.x].density - restDensity);
+}
+
+[numthreads(256, 1, 1)]
+void CSForces(uint3 id : SV_DispatchThreadID) {
+    if (id.x >= numParticles || Particles[id.x].lifetime <= 0) return;
+
+    float3 posI = Particles[id.x].position;
+    float3 velI = Particles[id.x].velocity;
+    float densI = Particles[id.x].density;
+    float presI = Particles[id.x].pressure;
+
+    float3 pressureForce = float3(0, 0, 0);
+    float3 viscosityForce = float3(0, 0, 0);
+    float h = smoothingRadius;
+    float h2 = h * h;
+
+    int3 cellIndex = (int3)floor(posI / cellSize);
+
+    for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
+            for (int z = -1; z <= 1; z++) {
+                uint3 wrapped = (uint3)((cellIndex + int3(x, y, z)) & (HASH_DIM - 1));
+                uint hash = wrapped.x + (wrapped.y * HASH_DIM) + (wrapped.z * HASH_DIM * HASH_DIM);
+                
+                uint count = min(GridCounters[hash], MAX_PARTICLES_PER_CELL);
+                for (uint k = 0; k < count; k++) {
+                    uint j = GridCells[hash * MAX_PARTICLES_PER_CELL + k];
+                    
+                    float3 diff = posI - Particles[j].position;
+                    float r2 = dot(diff, diff);
+
+                    if (r2 < h2 && r2 > 0.000001f) {
+                        float r = sqrt(r2);
+                        float3 direction = diff / r;
+
+                        float pForce = -particleMass * (presI + Particles[j].pressure) / (2.0 * Particles[j].density);
+                        pressureForce += direction * (pForce * spikyGrad * pow(h - r, 2));
+
+                        float3 vDiff = Particles[j].velocity - velI;
+                        viscosityForce += vDiff * (viscosity * particleMass * viscLap * (h - r) / Particles[j].density);
+                    }
+                }
+            }
+        }
+    }
+
+    Particles[id.x].force = pressureForce + viscosityForce + gravity * densI;
+}
+
+[numthreads(256, 1, 1)]
+void CSIntegrate(uint3 id : SV_DispatchThreadID) {
+    if (id.x >= numParticles) return;
+
+    Particle p = Particles[id.x];
+    if (p.lifetime <= 0) return;
+
+    float3 acceleration = p.force / p.density;
+    p.velocity += acceleration * deltaTime;
+    p.position += p.velocity * deltaTime;
+
+    float floorY = boxCenter.y - (boxSize.y / 2.0) + particleRadius;
+    if (p.position.y < floorY) {
+        p.position.y = floorY;
+        p.velocity.y *= -boundaryDamping;
+        p.velocity.x *= 0.95;
+        p.velocity.z *= 0.95;
+    }
+
+    float3 localPos = mul(bucketWorldToLocal, float4(p.position, 1.0)).xyz;
+    
+    if (localPos.y < 0.2 && localPos.y > -bucketHeightCS - 0.5) 
+    {
+        bool hitBoundary = false;
+        float3 localVel = mul(bucketWorldToLocal, float4(p.velocity, 0.0)).xyz;
+
+        float distXZ = length(localPos.xz);
+        if (distXZ > bucketRadiusCS - particleRadius) {
+            float3 normalXZ = normalize(float3(localPos.x, 0, localPos.z));
+            localPos.xz = normalXZ.xz * (bucketRadiusCS - particleRadius);
+            
+            float velDot = dot(localVel, normalXZ);
+            if (velDot > 0) {
+                localVel -= normalXZ * velDot * (1.0 + boundaryDamping);
+            }
+            hitBoundary = true;
+        }
+
+        float bottomY = -bucketHeightCS + particleRadius;
+        if (localPos.y < bottomY) 
+        {
+            float distToHole = length(localPos.xz - holeLocalPos.xz);
+            
+            if (distToHole > holeRadiusCS) 
+            {
+                localPos.y = bottomY;
+                if (localVel.y < 0) {
+                    localVel.y *= -boundaryDamping;
+                }
+                hitBoundary = true;
+            }
+        }
+
+        if (hitBoundary) {
+            p.position = mul(bucketLocalToWorld, float4(localPos, 1.0)).xyz;
+            p.velocity = mul(bucketLocalToWorld, float4(localVel, 0.0)).xyz;
+        }
+    }
+
+    Particles[id.x] = p;
+}
