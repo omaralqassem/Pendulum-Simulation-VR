@@ -1035,7 +1035,7 @@ Transform:
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 24.7, z: -25.8}
+  m_LocalPosition: {x: 0, y: 24.7, z: -42.14}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4292,6 +4292,7 @@ GameObject:
   - component: {fileID: 1267631993}
   - component: {fileID: 1267631992}
   - component: {fileID: 1267631995}
+  - component: {fileID: 1267631996}
   - component: {fileID: 1267631991}
   m_Layer: 0
   m_Name: Plane
@@ -4407,6 +4408,21 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Paintable
   extendsIslandOffset: 1
+--- !u!114 &1267631996
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1267631990}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 563a7ef9a5abebd469e00c5b2b0eb0e9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PaintTest
+  targetPaintable: {fileID: 1267631995}
+  testColor: {r: 1, g: 0, b: 0, a: 1}
+  testRadius: 1
 --- !u!1001 &1308542510
 PrefabInstance:
   m_ObjectHideFlags: 0
