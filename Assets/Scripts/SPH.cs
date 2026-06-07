@@ -39,7 +39,16 @@ public class SPHSystem : MonoBehaviour
     [SerializeField] private float gasConstant = 2000.0f;
     [SerializeField] private float viscosity = 5.0f;
     [SerializeField] private float particleMass = 0.2f;
+    [Header("Painting Integration")]
+    public Paintable targetCanvas;
+    public Color fluidPaintColor = Color.blue;
+    public float fluidPaintRadius = 0.5f;
+    [Range(1, 64)] public int maxPaintsPerFrame = 10;
 
+    private ComputeBuffer paintHitsBuffer;
+    private ComputeBuffer paintHitCountBuffer;
+    private Vector3[] paintHitsArray = new Vector3[64];
+    private uint[] paintHitCountArray = new uint[1];
     private ComputeBuffer particleBuffer;
     private ComputeBuffer argsBuffer;
     private ComputeBuffer gridCountersBuffer;
@@ -54,6 +63,8 @@ public class SPHSystem : MonoBehaviour
     private const int HASH_DIM = 128;
     private const int MAX_PARTICLES_PER_CELL = 48;
     private const int TOTAL_CELLS = HASH_DIM * HASH_DIM * HASH_DIM;
+    private Vector3 lastBucketPosition;
+    private Vector3 bucketVelocity;
 
     void Start()
     {
@@ -72,13 +83,29 @@ public class SPHSystem : MonoBehaviour
         threadGroupsGrid = Mathf.CeilToInt(TOTAL_CELLS / 256f);
 
         emissionBuffer = new SPHParticle[10000];
-
+        if (bucketTransform != null)
+        {
+            lastBucketPosition = bucketTransform.position;
+        }
         InitializeBuffers();
         PrefillBucket();
     }
 
-    private void InitializeBuffers()
+   private void InitializeBuffers()
     {
+        if (bucketTransform != null)
+        {
+            if (Time.deltaTime > 0)
+            {
+                bucketVelocity = (bucketTransform.position - lastBucketPosition) / Time.deltaTime;
+                lastBucketPosition = bucketTransform.position;
+            }
+            sphCompute.SetVector("bucketVelocity", bucketVelocity);
+        }
+        else
+        {
+            sphCompute.SetVector("bucketVelocity", Vector3.zero);
+        }
         particleBuffer = new ComputeBuffer(maxParticles, sizeof(float) * 12);
         
         NativeArray<SPHParticle> initialData = new NativeArray<SPHParticle>(maxParticles, Allocator.Temp);
@@ -102,13 +129,18 @@ public class SPHSystem : MonoBehaviour
         argsBuffer.SetData(args);
 
         renderMaterial.SetBuffer("Particles", particleBuffer);
+
+        paintHitsBuffer = new ComputeBuffer(64, sizeof(float) * 3);
+        paintHitCountBuffer = new ComputeBuffer(1, sizeof(uint));
+        paintHitsArray = new Vector3[64];
+        paintHitCountArray = new uint[1];
     }
 
     private void PrefillBucket()
     {
         if (bucketTransform == null || bucketPhysics == null) return;
 
-        int particlesToSpawn = Mathf.Min(maxParticles, 8000); 
+        int particlesToSpawn = maxParticles;
         
         float startY = -0.05f;
         float spacing = particleRadius * 2.1f;
@@ -192,12 +224,40 @@ public class SPHSystem : MonoBehaviour
         }
     }
 
-    void Update()
+  void Update()
     {
         RunSimulation();
         RenderParticles();
+        ProcessFluidPainting();
     }
 
+  private void ProcessFluidPainting()
+    {
+        if (targetCanvas == null) return;
+
+        paintHitCountBuffer.GetData(paintHitCountArray);
+        int hitCount = (int)paintHitCountArray[0];
+
+        if (hitCount > 0)
+        {
+            Debug.Log($"[Painting] Fluid hit the canvas {hitCount} times this frame!");
+
+            int paintsToProcess = Mathf.Min(hitCount, maxPaintsPerFrame);
+            paintHitsBuffer.GetData(paintHitsArray, 0, 0, paintsToProcess);
+
+            for (int i = 0; i < paintsToProcess; i++)
+            {
+                PaintManager.instance.paint(
+                    targetCanvas,
+                    paintHitsArray[i],
+                    Mathf.Max(fluidPaintRadius, 0.5f),
+                    0.5f,  
+                    0.5f, 
+                    fluidPaintColor
+                );
+            }
+        }
+    }
     private void RunSimulation()
     {
         float h = smoothingRadius;
@@ -213,7 +273,8 @@ public class SPHSystem : MonoBehaviour
         sphCompute.SetVector("boxCenter", transform.position);
         sphCompute.SetFloat("boundaryDamping", boundaryDamping);
         sphCompute.SetFloat("particleRadius", particleRadius);
-        sphCompute.SetFloat("deltaTime", Time.fixedDeltaTime);
+        sphCompute.SetFloat("deltaTime", 0.004f); 
+
         sphCompute.SetFloat("cellSize", h);
 
         sphCompute.SetFloat("poly6", 315.0f / (64.0f * Mathf.PI * Mathf.Pow(h, 9)));
@@ -229,6 +290,30 @@ public class SPHSystem : MonoBehaviour
             sphCompute.SetFloat("holeRadiusCS", bucketPhysics.holeRadius);
             sphCompute.SetVector("holeLocalPos", bucketPhysics.holeLocalOffset);
         }
+
+       if (targetCanvas != null)
+        {
+            MeshFilter meshFilter = targetCanvas.GetComponent<MeshFilter>();
+            if (meshFilter != null && meshFilter.sharedMesh != null)
+            {
+                sphCompute.SetMatrix("canvasWorldToLocal", targetCanvas.transform.worldToLocalMatrix);
+                sphCompute.SetVector("canvasLocalCenter", meshFilter.sharedMesh.bounds.center);
+                
+                Vector3 extents = meshFilter.sharedMesh.bounds.extents;
+                extents.x = Mathf.Max(extents.x, 0.1f);
+                extents.y = Mathf.Max(extents.y, 0.1f);
+                extents.z = Mathf.Max(extents.z, 0.1f);
+                sphCompute.SetVector("canvasLocalExtents", extents);
+            }
+        }
+        else
+        {
+            sphCompute.SetVector("canvasLocalCenter", new Vector3(99999f, 99999f, 99999f));
+            sphCompute.SetVector("canvasLocalExtents", Vector3.zero);
+        }
+
+        paintHitCountArray[0] = 0;
+        paintHitCountBuffer.SetData(paintHitCountArray);
 
         sphCompute.SetBuffer(clearGridKernel, "GridCounters", gridCountersBuffer);
         sphCompute.Dispatch(clearGridKernel, threadGroupsGrid, 1, 1);
@@ -249,9 +334,12 @@ public class SPHSystem : MonoBehaviour
         sphCompute.Dispatch(forcesKernel, threadGroupsSPH, 1, 1);
 
         sphCompute.SetBuffer(integrateKernel, "Particles", particleBuffer);
+        
+        sphCompute.SetBuffer(integrateKernel, "PaintHits", paintHitsBuffer);
+        sphCompute.SetBuffer(integrateKernel, "PaintHitCount", paintHitCountBuffer);
+        
         sphCompute.Dispatch(integrateKernel, threadGroupsSPH, 1, 1);
     }
-
     private void RenderParticles()
     {
         renderMaterial.SetFloat("_Scale", particleRadius * 2.0f);
@@ -264,6 +352,8 @@ public class SPHSystem : MonoBehaviour
         if (gridCountersBuffer != null) gridCountersBuffer.Release();
         if (gridCellsBuffer != null) gridCellsBuffer.Release();
         if (argsBuffer != null) argsBuffer.Release();
+        if (paintHitsBuffer != null) paintHitsBuffer.Release();
+        if (paintHitCountBuffer != null) paintHitCountBuffer.Release();
     }
 
     private void OnDrawGizmos()

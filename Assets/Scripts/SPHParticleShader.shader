@@ -70,11 +70,9 @@ Shader "Custom/SPHParticleRender"
                 #if defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
                 Particle p = Particles[unity_InstanceID];
                 
-                // Scale is reduced to 0 for dead/unused particles
                 float targetScale = p.lifetime > 0.0f ? _Scale : 0.0f;
                 worldPos = (v.vertex.xyz * targetScale) + p.position;
 
-                // Simple visual indicator color scaling with velocity
                 float speed = length(p.velocity);
                 particleColor = lerp(_Color, float4(1.0, 0.4, 0.1, 1.0), saturate(speed * 0.08));
                 #endif

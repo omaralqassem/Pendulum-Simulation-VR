@@ -18,7 +18,7 @@ RWStructuredBuffer<uint> GridCounters;
 RWStructuredBuffer<uint> GridCells;
 
 #define HASH_DIM 128 
-#define MAX_PARTICLES_PER_CELL 48 
+#define MAX_PARTICLES_PER_CELL 128
 
 uint numParticles;
 float smoothingRadius;
@@ -43,6 +43,13 @@ float bucketRadiusCS;
 float bucketHeightCS;
 float holeRadiusCS;
 float3 holeLocalPos;
+float3 bucketVelocity;
+
+RWStructuredBuffer<float3> PaintHits;
+RWStructuredBuffer<uint> PaintHitCount;
+float4x4 canvasWorldToLocal;
+float3 canvasLocalCenter;
+float3 canvasLocalExtents;
 
 uint GetHash(float3 pos) {
     int3 cell = (int3)floor(pos / cellSize);
@@ -102,7 +109,8 @@ void CSDensityPressure(uint3 id : SV_DispatchThreadID) {
     }
 
     Particles[id.x].density = max(densitySum, 0.01);
-    Particles[id.x].pressure = gasConstant * (Particles[id.x].density - restDensity);
+    
+    Particles[id.x].pressure = max(0.0, gasConstant * (Particles[id.x].density - restDensity));
 }
 
 [numthreads(256, 1, 1)]
@@ -138,11 +146,13 @@ void CSForces(uint3 id : SV_DispatchThreadID) {
                         float r = sqrt(r2);
                         float3 direction = diff / r;
 
-                        float pForce = -particleMass * (presI + Particles[j].pressure) / (2.0 * Particles[j].density);
+                        float densJ_clamped = max(Particles[j].density, restDensity);
+
+                        float pForce = -particleMass * (presI + Particles[j].pressure) / (2.0 * densJ_clamped);
                         pressureForce += direction * (pForce * spikyGrad * pow(h - r, 2));
 
                         float3 vDiff = Particles[j].velocity - velI;
-                        viscosityForce += vDiff * (viscosity * particleMass * viscLap * (h - r) / Particles[j].density);
+                        viscosityForce += vDiff * (viscosity * particleMass * viscLap * (h - r) / densJ_clamped);
                     }
                 }
             }
@@ -173,10 +183,12 @@ void CSIntegrate(uint3 id : SV_DispatchThreadID) {
 
     float3 localPos = mul(bucketWorldToLocal, float4(p.position, 1.0)).xyz;
     
-    if (localPos.y < 0.2 && localPos.y > -bucketHeightCS - 0.5) 
+    if (localPos.y < 0.2 && localPos.y >= -bucketHeightCS) 
     {
         bool hitBoundary = false;
-        float3 localVel = mul(bucketWorldToLocal, float4(p.velocity, 0.0)).xyz;
+        
+        float3 relativeWorldVel = p.velocity - bucketVelocity;
+        float3 localVel = mul(bucketWorldToLocal, float4(relativeWorldVel, 0.0)).xyz;
 
         float distXZ = length(localPos.xz);
         if (distXZ > bucketRadiusCS - particleRadius) {
@@ -207,9 +219,22 @@ void CSIntegrate(uint3 id : SV_DispatchThreadID) {
 
         if (hitBoundary) {
             p.position = mul(bucketLocalToWorld, float4(localPos, 1.0)).xyz;
-            p.velocity = mul(bucketLocalToWorld, float4(localVel, 0.0)).xyz;
+            p.velocity = mul(bucketLocalToWorld, float4(localVel, 0.0)).xyz + bucketVelocity;
         }
     }
 
+    float3 localCanvasPos = mul(canvasWorldToLocal, float4(p.position, 1.0)).xyz;
+    float3 diff = abs(localCanvasPos - canvasLocalCenter);
+    
+    if (diff.x < canvasLocalExtents.x && diff.y < canvasLocalExtents.y && diff.z < canvasLocalExtents.z) 
+    {
+        uint count;
+        InterlockedAdd(PaintHitCount[0], 1, count);
+        
+        if (count < 64) {
+            PaintHits[count] = p.position; 
+        }
+    }
+    
     Particles[id.x] = p;
 }

@@ -32,23 +32,29 @@ public class PaintManager : Singleton<PaintManager>{
     }
 
     public void initTextures(Paintable paintable){
-        RenderTexture mask = paintable.getMask();
-        RenderTexture uvIslands = paintable.getUVIslands();
-        RenderTexture extend = paintable.getExtend();
-        RenderTexture support = paintable.getSupport();
-        Renderer rend = paintable.getRenderer();
+    RenderTexture mask = paintable.getMask();
+    RenderTexture uvIslands = paintable.getUVIslands();
+    RenderTexture extend = paintable.getExtend();
+    RenderTexture support = paintable.getSupport();
+    Renderer rend = paintable.getRenderer();
 
-        command.SetRenderTarget(mask);
-        command.SetRenderTarget(extend);
-        command.SetRenderTarget(support);
+    command.SetRenderTarget(mask);
+    command.ClearRenderTarget(true, true, Color.clear);
 
-        paintMaterial.SetFloat(prepareUVID, 1);
-        command.SetRenderTarget(uvIslands);
-        command.DrawRenderer(rend, paintMaterial, 0);
+    command.SetRenderTarget(support);
+    command.ClearRenderTarget(true, true, Color.clear);
 
-        Graphics.ExecuteCommandBuffer(command);
-        command.Clear();
-    }
+    command.SetRenderTarget(extend);
+    command.ClearRenderTarget(true, true, Color.clear);
+
+    paintMaterial.SetFloat(prepareUVID, 1);
+    command.SetRenderTarget(uvIslands);
+    command.ClearRenderTarget(true, true, Color.clear);
+    command.DrawRenderer(rend, paintMaterial, 0);
+
+    Graphics.ExecuteCommandBuffer(command);
+    command.Clear();
+}
 
 
     public void paint(Paintable paintable, Vector3 pos, float radius = 1f, float hardness = .5f, float strength = .5f, Color? color = null){
