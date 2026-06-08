@@ -43,6 +43,8 @@ public class SPHSystem : MonoBehaviour
     public Paintable targetCanvas;
     public Color fluidPaintColor = Color.blue;
     public float fluidPaintRadius = 0.5f;
+    [SerializeField] private float hardness = 0.5f;
+    [SerializeField] private float strength = 0.5f;
     [Range(1, 64)] public int maxPaintsPerFrame = 10;
 
     private ComputeBuffer paintHitsBuffer;
@@ -251,8 +253,8 @@ public class SPHSystem : MonoBehaviour
                     targetCanvas,
                     paintHitsArray[i],
                     Mathf.Max(fluidPaintRadius, 0.5f),
-                    0.5f,  
-                    0.5f, 
+                    hardness,  
+                    strength, 
                     fluidPaintColor
                 );
             }

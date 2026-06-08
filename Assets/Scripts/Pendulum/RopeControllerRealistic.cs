@@ -15,18 +15,28 @@ public class RopeControllerRealistic : MonoBehaviour
     public List<RopeSection> allRopeSections = new List<RopeSection>();
 
     //Rope data
-    private float ropeSectionLength = 5f;
+    [Header("Rope data")]
+    [SerializeField]private float ropeSectionLength = 5f;
 
     //Data we can change to change the properties of the rope
     //Spring constant
-    public float kRope = 40f;
+    [Header("Spring constant")]
+    [SerializeField] private float kRope = 40f;
     //Damping from rope friction constant
-    public float dRope = 2f;
+    [Header("Damping from rope friction constant")]
+    [SerializeField] private float dRope = 2f;
     //Damping from air resistance constant
-    public float aRope = 0.05f;
+    [Header("Damping from air resistance constant")]
+    [SerializeField] private float aRope = 0.05f;
     //Mass of one rope section
-    public float mRopeSection = 0.2f;
-
+    [Header("Mass of one rope section")]
+    [SerializeField] private float mRopeSection = 0.2f;
+    [Header("number of Section")]
+    [SerializeField] private int numberSection = 7;
+    [Header("Simulate the rope \n How accurate should the simulation be?")]
+    [SerializeField] private int iterations = 1;
+    [Header("ropeWidth")]
+    [SerializeField] private float ropeWidth = 0.2f;
     void Start()
     {
         //Init the line renderer we use to display the rope
@@ -40,7 +50,7 @@ public class RopeControllerRealistic : MonoBehaviour
 
         List<Vector3> ropePositions = new List<Vector3>();
 
-        for (int i = 0; i < 7; i++)
+        for (int i = 0; i < numberSection; i++)
         {
             ropePositions.Add(pos);
 
@@ -74,7 +84,7 @@ public class RopeControllerRealistic : MonoBehaviour
         {
             //Simulate the rope
             //How accurate should the simulation be?
-            int iterations = 1;
+            
 
             //Time step
             float timeStep = Time.fixedDeltaTime / (float)iterations;
@@ -89,7 +99,7 @@ public class RopeControllerRealistic : MonoBehaviour
     //Display the rope with a line renderer
     private void DisplayRope()
     {
-        float ropeWidth = 0.2f;
+        
 
         lineRenderer.startWidth = ropeWidth;
         lineRenderer.endWidth = ropeWidth;

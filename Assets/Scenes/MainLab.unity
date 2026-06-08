@@ -1338,6 +1338,8 @@ MonoBehaviour:
   targetCanvas: {fileID: 1267631995}
   fluidPaintColor: {r: 0, g: 0, b: 1, a: 1}
   fluidPaintRadius: 0.8
+  hardness: 0.5
+  strength: 0.5
   maxPaintsPerFrame: 10
 --- !u!4 &471223925
 Transform:
@@ -4217,7 +4219,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BucketPhysics
   ropeController: {fileID: 1736264499}
   fluidSystem: {fileID: 471223924}
-  dryBucketMass: 20
+  dryBucketMass: 100
   bucketHeight: 0.4
   bucketRadius: 0.035
   bucketDamping: 1.2
@@ -4736,10 +4738,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RopeControllerRealistic
   whatTheRopeIsConnectedTo: {fileID: 1828742862}
   whatIsHangingFromTheRope: {fileID: 984022701}
-  kRope: 80
+  ropeSectionLength: 2
+  kRope: 150
   dRope: 2
   aRope: 0.05
   mRopeSection: 0.2
+  numberSection: 20
+  iterations: 5
+  ropeWidth: 0.3
 --- !u!4 &1736264500
 Transform:
   m_ObjectHideFlags: 0
