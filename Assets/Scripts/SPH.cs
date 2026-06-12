@@ -1,6 +1,7 @@
 using UnityEngine;
 using Unity.Collections;
 using System.Collections.Generic;
+using System.Collections;
 
 public class SPHSystem : MonoBehaviour
 {
@@ -22,6 +23,7 @@ public class SPHSystem : MonoBehaviour
     [SerializeField] private ComputeShader sphCompute;
     [SerializeField] private Material renderMaterial;
     [SerializeField] private Mesh particleMesh;
+    [SerializeField] private bool showMeshParticles = true;
 
     [Header("Simulation Space")]
     [SerializeField] private Vector3 boxSize = new Vector3(20f, 40f, 20f);
@@ -46,6 +48,7 @@ public class SPHSystem : MonoBehaviour
     [SerializeField] private float hardness = 0.5f;
     [SerializeField] private float strength = 0.5f;
     [Range(1, 64)] public int maxPaintsPerFrame = 10;
+    [Header("Resources")]
 
     private ComputeBuffer paintHitsBuffer;
     private ComputeBuffer paintHitCountBuffer;
@@ -55,6 +58,9 @@ public class SPHSystem : MonoBehaviour
     private ComputeBuffer argsBuffer;
     private ComputeBuffer gridCountersBuffer;
     private ComputeBuffer gridCellsBuffer;
+    public ComputeBuffer ParticleBuffer => particleBuffer;
+    public int MaxParticles => maxParticles;
+    public float ParticleRadius => particleRadius;
 
     private int clearGridKernel, buildGridKernel, densityKernel, forcesKernel, integrateKernel;
     private int threadGroupsSPH, threadGroupsGrid;
@@ -63,7 +69,7 @@ public class SPHSystem : MonoBehaviour
     private int emitIndex = 0;
 
     private const int HASH_DIM = 128;
-    private const int MAX_PARTICLES_PER_CELL = 48;
+    private const int MAX_PARTICLES_PER_CELL = 128;
     private const int TOTAL_CELLS = HASH_DIM * HASH_DIM * HASH_DIM;
     private Vector3 lastBucketPosition;
     private Vector3 bucketVelocity;
@@ -89,10 +95,24 @@ public class SPHSystem : MonoBehaviour
         {
             lastBucketPosition = bucketTransform.position;
         }
-        InitializeBuffers();
-        PrefillBucket();
+ InitializeBuffers();
+        StartCoroutine(WaitAndPrefillBucket());
+    }
+    private IEnumerator WaitAndPrefillBucket()
+{
+    while (bucketPhysics == null || 
+           bucketPhysics.ropeController == null || 
+           bucketPhysics.ropeController.allRopeSections.Count == 0)
+    {
+        yield return null;
     }
 
+
+    yield return new WaitForFixedUpdate();
+    yield return new WaitForFixedUpdate();
+
+    PrefillBucket();
+}
    private void InitializeBuffers()
     {
         if (bucketTransform != null)
@@ -137,37 +157,26 @@ public class SPHSystem : MonoBehaviour
         paintHitsArray = new Vector3[64];
         paintHitCountArray = new uint[1];
     }
+private void PrefillBucket()
+{
+    if (bucketTransform == null || bucketPhysics == null) return;
 
-    private void PrefillBucket()
+    int particlesToSpawn = maxParticles;
+    
+    float startY = -bucketPhysics.bucketHeight + particleRadius * 1.5f; 
+    float spacing = particleRadius * 2.1f;
+    
+    Vector3 currentLocalPos = new Vector3(-(bucketPhysics.bucketRadius - particleRadius), startY, -(bucketPhysics.bucketRadius - particleRadius));
+    int spawned = 0;
+
+    NativeArray<SPHParticle> initialData = new NativeArray<SPHParticle>(maxParticles, Allocator.Temp);
+
+    for (int i = 0; i < maxParticles; i++)
     {
-        if (bucketTransform == null || bucketPhysics == null) return;
-
-        int particlesToSpawn = maxParticles;
-        
-        float startY = -0.05f;
-        float spacing = particleRadius * 2.1f;
-        
-        Vector3 currentLocalPos = new Vector3(0, startY, 0);
-        int spawned = 0;
-
-        NativeArray<SPHParticle> initialData = new NativeArray<SPHParticle>(maxParticles, Allocator.Temp);
-
-        for (int i = 0; i < maxParticles; i++)
+        if (spawned < particlesToSpawn)
         {
-            if (spawned < particlesToSpawn)
+            while (new Vector2(currentLocalPos.x, currentLocalPos.z).magnitude > (bucketPhysics.bucketRadius - particleRadius))
             {
-                Vector3 worldPos = bucketTransform.TransformPoint(currentLocalPos);
-                
-                initialData[i] = new SPHParticle
-                {
-                    position = worldPos,
-                    velocity = Vector3.zero,
-                    force = Vector3.zero,
-                    density = restDensity,
-                    pressure = 0f,
-                    lifetime = maxParticleLifetime
-                };
-
                 currentLocalPos.x += spacing;
                 if (currentLocalPos.x > bucketPhysics.bucketRadius - particleRadius)
                 {
@@ -177,26 +186,51 @@ public class SPHSystem : MonoBehaviour
                     if (currentLocalPos.z > bucketPhysics.bucketRadius - particleRadius)
                     {
                         currentLocalPos.z = -(bucketPhysics.bucketRadius - particleRadius);
-                        currentLocalPos.y -= spacing; 
+                        currentLocalPos.y += spacing; 
                     }
                 }
-                spawned++;
             }
-            else
+
+            Vector3 worldPos = bucketTransform.TransformPoint(currentLocalPos);
+            
+            initialData[i] = new SPHParticle
             {
-                initialData[i] = new SPHParticle
+                position = worldPos,
+                velocity = Vector3.zero,
+                force = Vector3.zero,
+                density = restDensity,
+                pressure = 0f,
+                lifetime = maxParticleLifetime
+            };
+
+            spawned++;
+
+            currentLocalPos.x += spacing;
+            if (currentLocalPos.x > bucketPhysics.bucketRadius - particleRadius)
+            {
+                currentLocalPos.x = -(bucketPhysics.bucketRadius - particleRadius);
+                currentLocalPos.z += spacing;
+                
+                if (currentLocalPos.z > bucketPhysics.bucketRadius - particleRadius)
                 {
-                    position = new Vector3(99999f, 99999f, 99999f),
-                    lifetime = 0f
-                };
+                    currentLocalPos.z = -(bucketPhysics.bucketRadius - particleRadius);
+                    currentLocalPos.y += spacing; // Move UPWARD
+                }
             }
         }
-        
-        particleBuffer.SetData(initialData);
-        initialData.Dispose();
+        else
+        {
+            initialData[i] = new SPHParticle
+            {
+                position = new Vector3(99999f, 99999f, 99999f),
+                lifetime = 0f
+            };
+        }
     }
-
-    public void EmitParticles(Vector3 origin, Vector3 velocity, int count)
+    
+    particleBuffer.SetData(initialData);
+    initialData.Dispose();
+}    public void EmitParticles(Vector3 origin, Vector3 velocity, int count)
     {
         if (count <= 0) return;
         count = Mathf.Min(count, emissionBuffer.Length);
@@ -342,8 +376,10 @@ public class SPHSystem : MonoBehaviour
         
         sphCompute.Dispatch(integrateKernel, threadGroupsSPH, 1, 1);
     }
-    private void RenderParticles()
+private void RenderParticles()
     {
+        if (!showMeshParticles) return;
+
         renderMaterial.SetFloat("_Scale", particleRadius * 2.0f);
         Graphics.DrawMeshInstancedIndirect(particleMesh, 0, renderMaterial, new Bounds(transform.position, boxSize * 2f), argsBuffer);
     }

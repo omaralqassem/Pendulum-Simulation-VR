@@ -3,6 +3,7 @@
 #pragma kernel CSDensityPressure
 #pragma kernel CSForces
 #pragma kernel CSIntegrate
+#pragma kernel CSGenerateDensityGrid
 
 struct Particle {
     float3 position;
@@ -16,6 +17,8 @@ struct Particle {
 RWStructuredBuffer<Particle> Particles;
 RWStructuredBuffer<uint> GridCounters;
 RWStructuredBuffer<uint> GridCells;
+RWTexture3D<float> DensityGrid;
+uint densityGridRes;
 
 #define HASH_DIM 128 
 #define MAX_PARTICLES_PER_CELL 128
@@ -237,4 +240,43 @@ void CSIntegrate(uint3 id : SV_DispatchThreadID) {
     }
     
     Particles[id.x] = p;
+}
+
+[numthreads(8, 8, 8)]
+void CSGenerateDensityGrid(uint3 id : SV_DispatchThreadID) {
+    if (id.x >= densityGridRes || id.y >= densityGridRes || id.z >= densityGridRes) return;
+
+    float3 uvw = (float3)id / (float3)(densityGridRes - 1);
+    float3 pos = (boxCenter - boxSize * 0.5) + uvw * boxSize;
+
+    float density = 0.0;
+    float h = smoothingRadius;
+    float h2 = h * h;
+
+    int3 cellIndex = (int3)floor(pos / cellSize);
+
+    for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
+            for (int z = -1; z <= 1; z++) {
+                uint3 wrapped = (uint3)((cellIndex + int3(x, y, z)) & (HASH_DIM - 1));
+                uint hash = wrapped.x + (wrapped.y * HASH_DIM) + (wrapped.z * HASH_DIM * HASH_DIM);
+                
+                uint count = min(GridCounters[hash], MAX_PARTICLES_PER_CELL);
+                for (uint k = 0; k < count; k++) {
+                    uint j = GridCells[hash * MAX_PARTICLES_PER_CELL + k];
+                    
+                    float3 diff = pos - Particles[j].position;
+                    float r2 = dot(diff, diff);
+
+                    if (r2 < h2) {
+                        float r = sqrt(r2);
+                        float influence = 1.0 - (r / h);
+                        density += influence * influence * influence;
+                    }
+                }
+            }
+        }
+    }
+
+    DensityGrid[id] = density;
 }

@@ -1,0 +1,82 @@
+#pragma kernel CSRaymarching
+
+struct Particle {
+    float3 position;
+    float3 velocity;
+    float3 force;
+    float density;
+    float pressure;
+    float lifetime;
+};
+
+RWTexture2D<float4> Destination;
+Texture2D<float4> Source;
+Texture2D<float> _DepthTexture;
+
+StructuredBuffer<Particle> particles;
+
+float4x4 _CameraToWorld;
+float4x4 _CameraInverseProjection;
+float3 _CameraPos;
+float3 _Light;
+
+int numParticles;
+float particleRadius;
+float blendStrength;
+float4 waterColor;
+float4 _AmbientLight;
+
+int maxParticlesToCheck; 
+
+float3 GetRayDir(float2 uv, float4x4 camToWorld, float4x4 camInvProj) {
+    float4 worldPos = mul(camToWorld, mul(camInvProj, float4(uv * 2.0 - 1.0, 1.0, 1.0)));
+    return normalize(worldPos.xyz / worldPos.w - _CameraPos);
+}
+
+[numthreads(8,8,1)]
+void CSRaymarching (uint3 id : SV_DispatchThreadID) {
+    uint2 res;
+    Destination.GetDimensions(res.x, res.y);
+    if (id.x >= res.x || id.y >= res.y) return;
+
+    float2 uv = (float2(id.xy) + 0.5) / float2(res.x, res.y);
+    float3 rayOrigin = _CameraPos;
+    float3 rayDir = GetRayDir(uv, _CameraToWorld, _CameraInverseProjection);
+
+    float4 col = Source[id.xy];
+
+    float minT = 10000.0;
+    float3 hitNormal = 0;
+    bool hit = false;
+
+    int limit = min(numParticles, maxParticlesToCheck);
+
+    for (int i = 0; i < limit; i++) {
+        if (particles[i].lifetime <= 0) continue;
+        
+        float3 oc = rayOrigin - particles[i].position;
+        float b = dot(oc, rayDir);
+        float c = dot(oc, oc) - particleRadius * particleRadius;
+        float disc = b * b - c;
+        
+        if (disc > 0.0) {
+            float sqrtDisc = sqrt(disc);
+            float t = -b - sqrtDisc;
+            if (t > 0.0 && t < minT) {
+                minT = t;
+                hitNormal = normalize((rayOrigin + rayDir * t) - particles[i].position);
+                hit = true;
+            }
+        }
+    }
+
+    if (hit) {
+        float3 lightDir = normalize(-_Light); 
+        float diff = max(dot(hitNormal, lightDir), 0.0);
+        float3 litColor = (waterColor.rgb * _AmbientLight.rgb) + (waterColor.rgb * diff * 0.8);
+        
+        col.rgb = lerp(col.rgb, litColor, 0.9);
+    }
+
+    Destination[id.xy] = col;
+}
