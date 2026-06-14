@@ -376,6 +376,6 @@ public class RopeControllerRealistic : MonoBehaviour
 
         float wantedLength = ropeSectionLength * (float)(allRopeSections.Count - 1);
 
-        print("Wanted: " + wantedLength + " Actual: " + currentLength);
+        //print("Wanted: " + wantedLength + " Actual: " + currentLength);
     }
 }

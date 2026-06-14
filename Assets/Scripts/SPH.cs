@@ -14,6 +14,10 @@ public class SPHSystem : MonoBehaviour
         public float pressure;
         public float lifetime;
     }
+    [Header("Initial Fill")]
+    [Range(0f, 1f)]
+    public float fillAmount = 0.7f;
+
 
     [Header("Bucket Integration")]
     public Transform bucketTransform;
@@ -31,12 +35,12 @@ public class SPHSystem : MonoBehaviour
 
     [Header("Fluid Properties")]
     [SerializeField] private int maxParticles = 500000;
-    [SerializeField] private float particleRadius = 0.02f;
+    [SerializeField] private float particleRadius = 0.01f;
     [SerializeField] private Vector3 gravity = new Vector3(0f, -9.81f, 0f);
     [SerializeField] private float maxParticleLifetime = 8f;
 
     [Header("SPH Parameters")]
-    [SerializeField] private float smoothingRadius = 0.06f;
+    [SerializeField] private float smoothingRadius = 0.03f;
     [SerializeField] private float restDensity = 1000.0f;
     [SerializeField] private float gasConstant = 2000.0f;
     [SerializeField] private float viscosity = 5.0f;
@@ -69,7 +73,7 @@ public class SPHSystem : MonoBehaviour
     private int emitIndex = 0;
 
     private const int HASH_DIM = 128;
-    private const int MAX_PARTICLES_PER_CELL = 128;
+    private const int MAX_PARTICLES_PER_CELL = 64;
     private const int TOTAL_CELLS = HASH_DIM * HASH_DIM * HASH_DIM;
     private Vector3 lastBucketPosition;
     private Vector3 bucketVelocity;
@@ -157,80 +161,100 @@ public class SPHSystem : MonoBehaviour
         paintHitsArray = new Vector3[64];
         paintHitCountArray = new uint[1];
     }
-private void PrefillBucket()
-{
-    if (bucketTransform == null || bucketPhysics == null) return;
 
-    int particlesToSpawn = maxParticles;
-    
-    float startY = -bucketPhysics.bucketHeight + particleRadius * 1.5f; 
-    float spacing = particleRadius * 2.1f;
-    
-    Vector3 currentLocalPos = new Vector3(-(bucketPhysics.bucketRadius - particleRadius), startY, -(bucketPhysics.bucketRadius - particleRadius));
-    int spawned = 0;
-
-    NativeArray<SPHParticle> initialData = new NativeArray<SPHParticle>(maxParticles, Allocator.Temp);
-
-    for (int i = 0; i < maxParticles; i++)
+    private void PrefillBucket()
     {
-        if (spawned < particlesToSpawn)
+        if (bucketTransform == null || bucketPhysics == null)
+            return;
+
+        float spacing = particleRadius *0.7f;
+
+        float bucketRadius = bucketPhysics.bucketRadius - particleRadius;
+        float bucketBottom = -bucketPhysics.bucketHeight + particleRadius;
+        float bucketTop = bucketPhysics.bucketHeight - particleRadius;
+
+        float fillTop =
+            Mathf.Lerp(
+                bucketBottom,
+                bucketTop,
+                fillAmount
+            );
+
+        NativeArray<SPHParticle> initialData =
+            new NativeArray<SPHParticle>(maxParticles, Allocator.Temp);
+
+        int particleIndex = 0;
+
+        // Fill layer by layer
+        for (float y = bucketBottom; y < fillTop; y += spacing)
         {
-            while (new Vector2(currentLocalPos.x, currentLocalPos.z).magnitude > (bucketPhysics.bucketRadius - particleRadius))
+            for (float z = -bucketRadius; z < bucketRadius; z += spacing)
             {
-                currentLocalPos.x += spacing;
-                if (currentLocalPos.x > bucketPhysics.bucketRadius - particleRadius)
+                for (float x = -bucketRadius; x < bucketRadius; x += spacing)
                 {
-                    currentLocalPos.x = -(bucketPhysics.bucketRadius - particleRadius);
-                    currentLocalPos.z += spacing;
-                    
-                    if (currentLocalPos.z > bucketPhysics.bucketRadius - particleRadius)
+                    if (particleIndex >= maxParticles)
+                        goto FillFinished;
+
+                    Vector2 radialPos = new Vector2(x, z);
+
+                    // Stay inside cylindrical bucket
+                    if (radialPos.magnitude > bucketRadius)
+                        continue;
+
+                    Vector3 jitter = new Vector3(
+                                     Random.Range(-spacing * 0.05f, spacing * 0.05f),
+                                     Random.Range(-spacing * 0.05f, spacing * 0.05f),
+                                     Random.Range(-spacing * 0.05f, spacing * 0.05f)
+                                     );
+
+                    Vector3 localPos = new Vector3(x, y, z) + jitter;
+
+                   
+
+                    Vector3 worldPos =
+                        bucketTransform.TransformPoint(localPos);
+
+                    initialData[particleIndex] = new SPHParticle
                     {
-                        currentLocalPos.z = -(bucketPhysics.bucketRadius - particleRadius);
-                        currentLocalPos.y += spacing; 
-                    }
-                }
-            }
+                        position = worldPos,
+                        velocity = Vector3.zero,
+                        force = Vector3.zero,
+                        density = restDensity,
+                        pressure = 0f,
+                        lifetime = maxParticleLifetime
+                    };
 
-            Vector3 worldPos = bucketTransform.TransformPoint(currentLocalPos);
-            
-            initialData[i] = new SPHParticle
-            {
-                position = worldPos,
-                velocity = Vector3.zero,
-                force = Vector3.zero,
-                density = restDensity,
-                pressure = 0f,
-                lifetime = maxParticleLifetime
-            };
-
-            spawned++;
-
-            currentLocalPos.x += spacing;
-            if (currentLocalPos.x > bucketPhysics.bucketRadius - particleRadius)
-            {
-                currentLocalPos.x = -(bucketPhysics.bucketRadius - particleRadius);
-                currentLocalPos.z += spacing;
-                
-                if (currentLocalPos.z > bucketPhysics.bucketRadius - particleRadius)
-                {
-                    currentLocalPos.z = -(bucketPhysics.bucketRadius - particleRadius);
-                    currentLocalPos.y += spacing; // Move UPWARD
+                    particleIndex++;
                 }
             }
         }
-        else
+
+    FillFinished:
+
+        // Disable unused particles
+        for (int i = particleIndex; i < maxParticles; i++)
         {
             initialData[i] = new SPHParticle
             {
                 position = new Vector3(99999f, 99999f, 99999f),
+                velocity = Vector3.zero,
+                force = Vector3.zero,
+                density = 0f,
+                pressure = 0f,
                 lifetime = 0f
             };
         }
+
+        particleBuffer.SetData(initialData);
+
+        Debug.Log(
+            $"Prefilled {particleIndex} particles " +
+            $"({fillAmount * 100f:F0}% bucket fill)"
+        );
+
+        initialData.Dispose();
     }
-    
-    particleBuffer.SetData(initialData);
-    initialData.Dispose();
-}    public void EmitParticles(Vector3 origin, Vector3 velocity, int count)
+    public void EmitParticles(Vector3 origin, Vector3 velocity, int count)
     {
         if (count <= 0) return;
         count = Mathf.Min(count, emissionBuffer.Length);
@@ -265,6 +289,15 @@ private void PrefillBucket()
         RunSimulation();
         RenderParticles();
         ProcessFluidPainting();
+        SPHParticle[] debug = new SPHParticle[13];
+        particleBuffer.GetData(debug, 0, 0, 10);
+
+        for (int i = 0; i < 10; i++)
+        {
+            Debug.Log(
+                $"P{i} Pos={debug[i].position} Density={debug[i].density} presuer = {debug[i].pressure}"
+            );
+        }
     }
 
   private void ProcessFluidPainting()

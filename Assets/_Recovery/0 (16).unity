@@ -1372,7 +1372,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 56cc445fa9cdef54a9bc8c6c85ddfede, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GPUSPH3D
-  fillAmount: 1
   bucketTransform: {fileID: 1632913531}
   bucketPhysics: {fileID: 984022702}
   sphCompute: {fileID: 7200000, guid: 3e5e0c30a8986fd469a02b9c6b94541c, type: 3}
@@ -1387,9 +1386,9 @@ MonoBehaviour:
   maxParticleLifetime: 12
   smoothingRadius: 0.0018
   restDensity: 1300
-  gasConstant: 50
+  gasConstant: 250
   viscosity: 450
-  particleMass: 0.00027
+  particleMass: 0.27
   targetCanvas: {fileID: 1267631995}
   fluidPaintColor: {r: 0, g: 0, b: 1, a: 1}
   fluidPaintRadius: 0.8
@@ -4411,7 +4410,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BucketInteractionCustom
   useAutoStart: 1
-  startingOffset: {x: 22, y: -26, z: 0}
+  startingOffset: {x: 0, y: -26, z: 0}
   initialPushVelocity: {x: 0, y: 0, z: 0}
   grabKey: 32
   keyboardDragSpeed: 6
