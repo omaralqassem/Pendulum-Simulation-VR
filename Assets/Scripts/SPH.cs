@@ -31,20 +31,20 @@ public class SPHSystem : MonoBehaviour
 
     [Header("Simulation Space")]
     [SerializeField] private Vector3 boxSize = new Vector3(20f, 40f, 20f);
-    [SerializeField] private float boundaryDamping = 0.4f;
+    [SerializeField] private float boundaryDamping = 0.15f;
 
     [Header("Fluid Properties")]
     [SerializeField] private int maxParticles = 500000;
-    [SerializeField] private float particleRadius = 0.01f;
+    [SerializeField] private float particleRadius = 0.00025f;
     [SerializeField] private Vector3 gravity = new Vector3(0f, -9.81f, 0f);
-    [SerializeField] private float maxParticleLifetime = 8f;
+    [SerializeField] private float maxParticleLifetime = 12f;
 
     [Header("SPH Parameters")]
-    [SerializeField] private float smoothingRadius = 0.03f;
-    [SerializeField] private float restDensity = 1000.0f;
-    [SerializeField] private float gasConstant = 2000.0f;
-    [SerializeField] private float viscosity = 5.0f;
-    [SerializeField] private float particleMass = 0.2f;
+    [SerializeField] private float smoothingRadius = 0.018f;
+    [SerializeField] private float restDensity = 1300.0f;
+    [SerializeField] private float gasConstant = 50.0f;
+    [SerializeField] private float viscosity = 0.1f;
+    [SerializeField] private float particleMass = 0.00025f;
     [Header("Painting Integration")]
     public Paintable targetCanvas;
     public Color fluidPaintColor = Color.blue;
@@ -73,7 +73,7 @@ public class SPHSystem : MonoBehaviour
     private int emitIndex = 0;
 
     private const int HASH_DIM = 128;
-    private const int MAX_PARTICLES_PER_CELL = 64;
+    private const int MAX_PARTICLES_PER_CELL = 128;
     private const int TOTAL_CELLS = HASH_DIM * HASH_DIM * HASH_DIM;
     private Vector3 lastBucketPosition;
     private Vector3 bucketVelocity;
@@ -342,7 +342,8 @@ public class SPHSystem : MonoBehaviour
         sphCompute.SetVector("boxCenter", transform.position);
         sphCompute.SetFloat("boundaryDamping", boundaryDamping);
         sphCompute.SetFloat("particleRadius", particleRadius);
-        sphCompute.SetFloat("deltaTime", 0.004f); 
+        sphCompute.SetFloat("deltaTime", Mathf.Min(Time.deltaTime, 0.002f));
+
 
         sphCompute.SetFloat("cellSize", h);
 
@@ -359,7 +360,12 @@ public class SPHSystem : MonoBehaviour
             sphCompute.SetFloat("holeRadiusCS", bucketPhysics.holeRadius);
             sphCompute.SetVector("holeLocalPos", bucketPhysics.holeLocalOffset);
         }
-
+        if (bucketTransform != null)
+{
+    Vector3 currentVel = (bucketTransform.position - lastBucketPosition) / Time.deltaTime;
+    lastBucketPosition = bucketTransform.position;
+    sphCompute.SetVector("bucketVelocity", currentVel);
+}
        if (targetCanvas != null)
         {
             MeshFilter meshFilter = targetCanvas.GetComponent<MeshFilter>();

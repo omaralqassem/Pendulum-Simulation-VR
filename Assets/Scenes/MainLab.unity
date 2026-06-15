@@ -1385,16 +1385,16 @@ MonoBehaviour:
   particleRadius: 0.008
   gravity: {x: 0, y: -9.81, z: 0}
   maxParticleLifetime: 12
-  smoothingRadius: 0.0018
+  smoothingRadius: 0.018
   restDensity: 1300
   gasConstant: 50
-  viscosity: 450
-  particleMass: 0.00027
+  viscosity: 5
+  particleMass: 0.00025
   targetCanvas: {fileID: 1267631995}
   fluidPaintColor: {r: 0, g: 0, b: 1, a: 1}
-  fluidPaintRadius: 0.8
-  hardness: 0.5
-  strength: 0.5
+  fluidPaintRadius: 0.008
+  hardness: 0.05
+  strength: 0.05
   maxPaintsPerFrame: 64
 --- !u!4 &471223925
 Transform:
@@ -4282,7 +4282,7 @@ MonoBehaviour:
   bucketDamping: 0.5
   hasHole: 1
   currentPaintMass: 10
-  paintDensity: 1300
+  paintDensity: 1000
   holeRadius: 0.018
   dischargeCoefficient: 0.35
   paintDensityFactor: 0.002
@@ -4407,16 +4407,17 @@ MonoBehaviour:
   m_GameObject: {fileID: 984022700}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2cb321ef725aac14088222342b7afd5a, type: 3}
+  m_Script: {fileID: 11500000, guid: b0825295a73f1064cb85a765e3c785e8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BucketInteractionCustom
   useAutoStart: 1
-  startingOffset: {x: 22, y: -26, z: 0}
-  initialPushVelocity: {x: 0, y: 0, z: 0}
+  startingOffset: {x: 22, y: -26, z: 1.5}
+  initialPushVelocity: {x: 0, y: 0, z: 1.5}
   grabKey: 32
-  keyboardDragSpeed: 6
-  maxDragDistance: 3.5
-  velocitySmoothingFactor: 12
+  keyboardDragSpeed: 10
+  maxDragDistance: 5
+  grabSmoothTime: 0.12
+  inputResponseDamping: 8
 --- !u!4 &1115624919 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4731941170816802, guid: 5573fbbed95ad6048a1584290e3b5b10, type: 3}

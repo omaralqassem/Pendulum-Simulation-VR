@@ -24,11 +24,15 @@ public class BucketPhysics : MonoBehaviour
     public Vector3 holeLocalOffset = new Vector3(0.15f, -0.4f, 0f); 
     public Vector3 paintExitDirectionLocal = new Vector3(0f, -1f, 0.5f); 
 
+
+    private Vector3 computedDragForceWorld = Vector3.zero;
+    private Vector3 computedDragTorqueLocal = Vector3.zero;
     private float emptyBucketCenterOfMassOffset; 
     private Vector3 angularVelocity = Vector3.zero; 
     private Quaternion bucketRotation = Quaternion.identity;
     private Vector3 lastPivotVelocity = Vector3.zero;
     private Vector3 smoothedPivotAcc = Vector3.zero;
+
 
     void Start()
     {
@@ -52,12 +56,13 @@ public class BucketPhysics : MonoBehaviour
         Vector3 rawPivotAcc = (currentPivotVel - lastPivotVelocity) / timeStep;
         lastPivotVelocity = currentPivotVel;
 
-        float smoothingFactor = 4.0f;
+        float smoothingFactor = 1.5f;
         float blend = 1.0f - Mathf.Exp(-smoothingFactor * timeStep);
         smoothedPivotAcc = Vector3.Lerp(smoothedPivotAcc, rawPivotAcc, blend);
 
         Vector3 gravityVec = new Vector3(0f, -9.81f, 0f);
         Vector3 effAcc = gravityVec - smoothedPivotAcc;
+
 
         // physics
         CalculateFluidDynamics(timeStep, effAcc, out Vector3 localThrustForce, out Vector3 localThrustTorque);
@@ -162,6 +167,7 @@ public class BucketPhysics : MonoBehaviour
 
         if (hasHole && currentPaintMass > 0f)
             totalLocalTorque += localThrustTorque;
+        totalLocalTorque += computedDragTorqueLocal;
 
         // Torsional alignment to the rope direction (Yaw)
         Vector3 ropeDir = (ropeController.allRopeSections[1].pos - ropeController.allRopeSections[0].pos).normalized;

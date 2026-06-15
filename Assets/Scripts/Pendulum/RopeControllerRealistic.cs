@@ -37,6 +37,7 @@ public class RopeControllerRealistic : MonoBehaviour
     [SerializeField] private int iterations = 1;
     [Header("ropeWidth")]
     [SerializeField] private float ropeWidth = 0.2f;
+
     void Start()
     {
         //Init the line renderer we use to display the rope
@@ -213,7 +214,7 @@ public class RopeControllerRealistic : MonoBehaviour
         float m = mRopeSection;
         //How long should the rope section be
         float wantedLength = ropeSectionLength;
-
+        
 
         //Calculate all forces once because some sections are using the same force but negative
         List<Vector3> allForces = new List<Vector3>();
@@ -285,7 +286,7 @@ public class RopeControllerRealistic : MonoBehaviour
 
             //The total force on this spring
             Vector3 totalForce = springForce + gravityForce - dampingForce;
-
+           
             //Calculate the acceleration a = F / m
             Vector3 acceleration = totalForce / springMass;
 
