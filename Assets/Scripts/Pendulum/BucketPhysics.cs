@@ -9,8 +9,13 @@ public class BucketPhysics : MonoBehaviour
     public float dryBucketMass = 2.0f;       
     public float bucketHeight = 0.4f;        
     public float bucketRadius = 0.15f;       
-    public float bucketDamping = 0.5f;       
     
+    [Header("Rope Twist Settings (Spinning)")]
+    [Tooltip("How strongly the rope resists twisting. Higher values make it untwist faster.")]
+    public float twistSpringStiffness = 0.1f; 
+    [Tooltip("Friction that slows down the spinning motion.")]
+    public float spinDamping = 0.2f;   
+
     [Header("Paint Properties")]    
     public bool hasHole = true;
     public float currentPaintMass = 13.0f;   
@@ -24,20 +29,17 @@ public class BucketPhysics : MonoBehaviour
     public Vector3 holeLocalOffset = new Vector3(0.15f, -0.4f, 0f); 
     public Vector3 paintExitDirectionLocal = new Vector3(0f, -1f, 0.5f); 
 
+    private float physicsMassPerParticle = 0f;
+    private bool massInitialized = false;
 
-    private Vector3 computedDragForceWorld = Vector3.zero;
-    private Vector3 computedDragTorqueLocal = Vector3.zero;
-    private float emptyBucketCenterOfMassOffset; 
-    private Vector3 angularVelocity = Vector3.zero; 
-    private Quaternion bucketRotation = Quaternion.identity;
+    private float spinAngleRad = 0f;
+    private float spinVelocityRad = 0f;
     private Vector3 lastPivotVelocity = Vector3.zero;
     private Vector3 smoothedPivotAcc = Vector3.zero;
 
-
     void Start()
     {
-        bucketRotation = transform.rotation;
-        emptyBucketCenterOfMassOffset = bucketHeight * 0.5f; 
+        transform.rotation = Quaternion.identity;
     }
 
     public float GetTotalMass()
@@ -63,12 +65,12 @@ public class BucketPhysics : MonoBehaviour
         Vector3 gravityVec = new Vector3(0f, -9.81f, 0f);
         Vector3 effAcc = gravityVec - smoothedPivotAcc;
 
-
-        // physics
+        // physics 
         CalculateFluidDynamics(timeStep, effAcc, out Vector3 localThrustForce, out Vector3 localThrustTorque);
         ApplyThrustToRope(localThrustForce);
-        UpdateRotation(localThrustTorque, effAcc, timeStep);
+        UpdateRotation(localThrustTorque, timeStep);
 
+        // Lock to end of the rope
         transform.position = ropeController.allRopeSections[0].pos;
     }
 
@@ -77,47 +79,41 @@ public class BucketPhysics : MonoBehaviour
         localThrustForce = Vector3.zero;
         localThrustTorque = Vector3.zero;
 
-        if (!hasHole || currentPaintMass <= 0f)
-        {
-            currentPaintMass = 0f;
+        if (!hasHole || fluidSystem == null || !fluidSystem.isInitialized)
             return;
+
+        if (!massInitialized && fluidSystem.ParticlesInBucketCount > 0)
+        {
+            physicsMassPerParticle = currentPaintMass / (float)fluidSystem.ParticlesInBucketCount;
+            massInitialized = true;
         }
 
-        float areaBucket = Mathf.PI * (bucketRadius * bucketRadius);
-        float areaHole = Mathf.PI * (holeRadius * holeRadius);
+        float actualSPHMass = fluidSystem.ParticlesInBucketCount * physicsMassPerParticle;
+        float massDrained = Mathf.Max(0f, currentPaintMass - actualSPHMass);
+        currentPaintMass = actualSPHMass;
         
-        // Calculate nominal paint height
+        if (currentPaintMass <= 0.0001f || massDrained <= 0.0001f) return;
+
+        float areaBucket = Mathf.PI * (bucketRadius * bucketRadius);
         float paintHeight = (currentPaintMass / paintDensity) / areaBucket;
         paintHeight = Mathf.Clamp(paintHeight, 0f, bucketHeight);
 
-        // Calculate pressure head accounting for tilt relative to effective gravity
         Vector3 effAccDir = effAcc.normalized;
-        Vector3 localUpWorld = bucketRotation * Vector3.up;
+        Vector3 localUpWorld = transform.rotation * Vector3.up;
         float alignment = Mathf.Max(0.01f, Vector3.Dot(localUpWorld, -effAccDir));
         
         float adjustedHead = paintHeight * alignment;
         float effectiveG = effAcc.magnitude;
 
-        // Torricelli's law with adjusted pressure head
+        // calculate theoretical exit velocity (Torricelli's law is still good for the *speed* of the thrust)
         float exitVelocity = Mathf.Sqrt(2f * effectiveG * adjustedHead);
         
-        // Mass flow rate
-        float massFlowRate = dischargeCoefficient * paintDensity * areaHole * exitVelocity;
-        float massToDrain = massFlowRate * timeStep;
-        
-        if (massToDrain > currentPaintMass)
-        {
-            massToDrain = currentPaintMass;
-            massFlowRate = massToDrain / timeStep;
-        }
-        
-        currentPaintMass -= massToDrain;
+        // calculate actual mass flow rate from the GPU drain
+        float actualMassFlowRate = massDrained / timeStep;
 
-        // Note: Manual particle emission (EmitParticles) was removed here because 
-        // the SPH compute shader now handles particles physically falling out of the hole!
-
-        float thrustMagnitude = massFlowRate * exitVelocity;
+        float thrustMagnitude = actualMassFlowRate * exitVelocity;
         Vector3 exitDirNormalized = paintExitDirectionLocal.normalized;
+        
         localThrustForce = -exitDirNormalized * thrustMagnitude;
         localThrustTorque = Vector3.Cross(holeLocalOffset, localThrustForce);
     }
@@ -126,7 +122,7 @@ public class BucketPhysics : MonoBehaviour
     {
         if (localThrustForce.sqrMagnitude <= 0.0001f) return;
 
-        Vector3 worldThrustVec = bucketRotation * localThrustForce;
+        Vector3 worldThrustVec = transform.rotation * localThrustForce;
         Vector3 thrustAcceleration = worldThrustVec / GetTotalMass();
 
         var bottomSection = ropeController.allRopeSections[0];
@@ -134,80 +130,33 @@ public class BucketPhysics : MonoBehaviour
         ropeController.allRopeSections[0] = bottomSection;
     }
 
-    private void UpdateRotation(Vector3 localThrustTorque, Vector3 effAcc, float timeStep)
+    private void UpdateRotation(Vector3 localThrustTorque, float timeStep)
     {
-        float totalMass = GetTotalMass();
-        
-        float paintHeight = (currentPaintMass / paintDensity) / (Mathf.PI * bucketRadius * bucketRadius);
-        //center of Mass
-        float paintCOMOffsetFromPivot = bucketHeight - (paintHeight * 0.5f); 
-        float dynamicCOMOffset = ((dryBucketMass * emptyBucketCenterOfMassOffset) + (currentPaintMass * paintCOMOffsetFromPivot)) / totalMass;
-
         float rSq = bucketRadius * bucketRadius;
-        
-        // Moment of inertia calculation
-        float iPaintXZ = currentPaintMass * (3f * rSq + (paintHeight * paintHeight)) / 12f + (currentPaintMass * paintCOMOffsetFromPivot * paintCOMOffsetFromPivot);
-        float iPaintY = currentPaintMass * rSq / 2f; 
-        
-        float iBucketXZ = dryBucketMass * (3f * rSq + (bucketHeight * bucketHeight)) / 12f + (dryBucketMass * emptyBucketCenterOfMassOffset * emptyBucketCenterOfMassOffset);
         float iBucketY = dryBucketMass * rSq; 
+        float iPaintY = currentPaintMass * rSq / 2f; 
+        float totalInertiaY = Mathf.Max(0.01f, iBucketY + iPaintY);
 
-        Vector3 totalInertia = new Vector3(
-            Mathf.Max(0.01f, iBucketXZ + iPaintXZ),
-            Mathf.Max(0.01f, iBucketY + iPaintY),   
-            Mathf.Max(0.01f, iBucketXZ + iPaintXZ) 
-        );
-
-        // Torque due to gravity and linear inertia 
-        Vector3 currentCOMDir = bucketRotation * Vector3.down * dynamicCOMOffset;
-        Vector3 totalForceOnCOM = totalMass * effAcc;
-        Vector3 gravityTorque = Vector3.Cross(currentCOMDir, totalForceOnCOM);
-
-        Vector3 totalLocalTorque = Quaternion.Inverse(bucketRotation) * gravityTorque;
-
+        float spinTorque = 0f;
         if (hasHole && currentPaintMass > 0f)
-            totalLocalTorque += localThrustTorque;
-        totalLocalTorque += computedDragTorqueLocal;
-
-        // Torsional alignment to the rope direction (Yaw)
-        Vector3 ropeDir = (ropeController.allRopeSections[1].pos - ropeController.allRopeSections[0].pos).normalized;
-        Vector3 targetForward = Vector3.ProjectOnPlane(ropeDir, Vector3.up).normalized;
-        if (targetForward.sqrMagnitude < 0.01f) targetForward = ropeController.whatTheRopeIsConnectedTo.forward;
-        
-        Vector3 currentForward = bucketRotation * Vector3.forward;
-        Vector3 yawError = Vector3.Cross(currentForward, targetForward);
-        float torsionalStiffness = 5.0f * (totalMass / dryBucketMass); 
-        totalLocalTorque += Vector3.up * Vector3.Dot(Quaternion.Inverse(bucketRotation) * yawError, Vector3.up) * torsionalStiffness;
-
-        //apply Euler's equations of motion: T = I * alpha + w x (I * w)
-        // expressed locally: alpha = I^-1 * (Torque - w x (I * w))
-        Vector3 iw = new Vector3(
-            totalInertia.x * angularVelocity.x,
-            totalInertia.y * angularVelocity.y,
-            totalInertia.z * angularVelocity.z
-        );
-        Vector3 gyroscopicTorque = Vector3.Cross(angularVelocity, iw);
-        Vector3 netLocalTorque = totalLocalTorque - gyroscopicTorque;
-
-        Vector3 localAngularAcc = new Vector3(
-            netLocalTorque.x / totalInertia.x,
-            netLocalTorque.y / totalInertia.y,
-            netLocalTorque.z / totalInertia.z
-        );
-
-        Vector3 dampingForce = angularVelocity * bucketDamping;
-        localAngularAcc -= dampingForce;
-
-        angularVelocity += localAngularAcc * timeStep;
-
-        // Integrate rotation
-        float angleRad = angularVelocity.magnitude * timeStep;
-        if (angleRad > 0.0001f)
         {
-            Quaternion deltaRot = Quaternion.AngleAxis(angleRad * Mathf.Rad2Deg, angularVelocity.normalized);
-            bucketRotation = bucketRotation * deltaRot; 
+            spinTorque = localThrustTorque.y;
         }
+        float spinAccel = spinTorque / totalInertiaY;
 
-        transform.rotation = bucketRotation;
+        float restoreTorque = -spinAngleRad * twistSpringStiffness;
+        spinAccel += restoreTorque / totalInertiaY;
+        spinAccel -= spinVelocityRad * spinDamping; 
+
+        spinVelocityRad += spinAccel * timeStep;
+        spinAngleRad += spinVelocityRad * timeStep;
+
+        Vector3 ropeDir = (ropeController.allRopeSections[1].pos - ropeController.allRopeSections[0].pos).normalized;
+        if (ropeDir == Vector3.zero) ropeDir = Vector3.up;
+
+        Quaternion tilt = Quaternion.FromToRotation(Vector3.up, ropeDir);
+        Quaternion spin = Quaternion.AngleAxis(spinAngleRad * Mathf.Rad2Deg, Vector3.up);
+
+        transform.rotation = tilt * spin;
     }
 }

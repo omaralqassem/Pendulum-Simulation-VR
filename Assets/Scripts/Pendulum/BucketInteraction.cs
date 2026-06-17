@@ -6,35 +6,22 @@ public class BucketInteractionCustom : MonoBehaviour
     private RopeControllerRealistic ropeController;
 
     [Header("Automatic Start Settings")]
-    [Tooltip("If true, the bucket starts from the custom offset below and swings on its own.")]
     public bool useAutoStart = true;
-    [Tooltip("Position offset from the natural hanging rest point where the bucket starts.")]
     public Vector3 startingOffset = new Vector3(2.5f, 0.5f, 0f);
-    [Tooltip("Optional initial push force vector applied to the bucket on start.")]
     public Vector3 initialPushVelocity = Vector3.zero;
 
-    [Header("Manual Keyboard Grab Settings")]
-    [Tooltip("Key used to grab and manually swing/throw the bucket during runtime.")]
-    public KeyCode grabKey = KeyCode.Space;
-    public float keyboardDragSpeed = 10.0f;
-    public float maxDragDistance = 5.0f;
+    [Header("Realistic Mouse Grab Settings")]
+    [Tooltip("How strongly your mouse pulls the bucket (spring stiffness).")]
+    public float mousePullStrength = 150.0f;
+    [Tooltip("How much your hand stabilizes the bucket while holding it (prevents infinite bouncing).")]
+    public float handDamping = 0.85f;
+    [Tooltip("How close the mouse needs to be to grab the bucket.")]
+    public float grabRadius = 1.0f;
 
-    [Tooltip("How smoothly the bucket tracks your input. Lower values make it stiffer; higher values make the bucket feel heavier and lag behind realistically.")]
-    public float grabSmoothTime = 0.12f;
-
-    [Tooltip("Smoothes out the digital on/off transitions of keyboard keys.")]
-    public float inputResponseDamping = 8.0f;
-
+    private Camera mainCamera;
     private bool isDragging = false;
     private bool autoStarted = false;
-    private Vector3 anchorPosition;
-    private Vector3 targetDragPosition;
-    private Vector3 smoothedInputVelocity;
-    private Vector3 smoothDampVelocityRef;
-
-    private const int VELOCITY_HISTORY_SIZE = 6;
-    private Vector3[] dragVelocityHistory = new Vector3[VELOCITY_HISTORY_SIZE];
-    private int historyWriteIndex = 0;
+    private float dragDepth; 
 
     void Start()
     {
@@ -43,13 +30,13 @@ public class BucketInteractionCustom : MonoBehaviour
         {
             ropeController = bucketPhysics.ropeController;
         }
+        
+        mainCamera = Camera.main;
     }
 
     void Update()
     {
         if (ropeController == null || ropeController.allRopeSections.Count == 0) return;
-
-        anchorPosition = ropeController.whatTheRopeIsConnectedTo.position;
 
         if (useAutoStart && !autoStarted)
         {
@@ -57,14 +44,26 @@ public class BucketInteractionCustom : MonoBehaviour
             InitializeAutoStart();
         }
 
-        HandleInputDetection();
+        HandleMouseInteraction();
     }
 
-    private void InitializeAutoStart()
+private void InitializeAutoStart()
     {
-        float ropeLength = (ropeController.allRopeSections.Count - 1) * 0.5f;
-        Vector3 restPosition = anchorPosition + Vector3.down * ropeLength;
-        Vector3 startPosition = restPosition + startingOffset;
+        Vector3 anchorPosition = ropeController.whatTheRopeIsConnectedTo.position;
+        
+        float sectionLength = 0.5f;
+        var lengthField = ropeController.GetType().GetField("ropeSectionLength", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        if (lengthField != null)
+        {
+            sectionLength = (float)lengthField.GetValue(ropeController);
+        }
+
+        float totalRopeLength = (ropeController.allRopeSections.Count - 1) * sectionLength;
+        Vector3 restPosition = anchorPosition + (Vector3.down * totalRopeLength);
+        Vector3 desiredStartPos = restPosition + startingOffset;
+        
+        Vector3 ropeDirection = (desiredStartPos - anchorPosition).normalized;
+        Vector3 perfectStartPosition = anchorPosition + (ropeDirection * totalRopeLength);
 
         int sectionCount = ropeController.allRopeSections.Count;
 
@@ -73,7 +72,7 @@ public class BucketInteractionCustom : MonoBehaviour
             float t = (float)i / (sectionCount - 1);
             var section = ropeController.allRopeSections[i];
             
-            section.pos = Vector3.Lerp(startPosition, anchorPosition, t);
+            section.pos = Vector3.Lerp(perfectStartPosition, anchorPosition, t);
             section.vel = Vector3.zero;
             
             ropeController.allRopeSections[i] = section;
@@ -83,29 +82,28 @@ public class BucketInteractionCustom : MonoBehaviour
         bottomSection.vel = initialPushVelocity;
         ropeController.allRopeSections[0] = bottomSection;
     }
-
-    private void HandleInputDetection()
+    private void HandleMouseInteraction()
     {
-        if (Input.GetKeyDown(grabKey))
-        {
-            isDragging = true;
-            targetDragPosition = ropeController.allRopeSections[0].pos;
-            smoothedInputVelocity = Vector3.zero;
-            smoothDampVelocityRef = ropeController.allRopeSections[0].vel;
+        if (mainCamera == null) return;
 
-            for (int i = 0; i < VELOCITY_HISTORY_SIZE; i++)
+        if (Input.GetMouseButtonDown(0))
+        {
+            Vector3 bucketPos = ropeController.allRopeSections[0].pos;
+            
+            Ray mouseRay = mainCamera.ScreenPointToRay(Input.mousePosition);
+            Vector3 closestPointOnRay = mouseRay.origin + mouseRay.direction * Vector3.Dot(mouseRay.direction, bucketPos - mouseRay.origin);
+            
+            if (Vector3.Distance(closestPointOnRay, bucketPos) <= grabRadius)
             {
-                dragVelocityHistory[i] = smoothDampVelocityRef;
+                isDragging = true;
+                
+                dragDepth = Vector3.Distance(mainCamera.transform.position, bucketPos);
             }
         }
 
-        if (Input.GetKeyUp(grabKey) && isDragging)
+        if (Input.GetMouseButtonUp(0))
         {
             isDragging = false;
-            
-            var bottomSection = ropeController.allRopeSections[0];
-            bottomSection.vel = GetPeakThrowVelocity();
-            ropeController.allRopeSections[0] = bottomSection;
         }
     }
 
@@ -113,64 +111,25 @@ public class BucketInteractionCustom : MonoBehaviour
     {
         if (ropeController == null || ropeController.allRopeSections.Count == 0) return;
 
-        if (isDragging)
+        if (isDragging && mainCamera != null)
         {
             float timeStep = Time.fixedDeltaTime;
 
-            float horizontalInput = Input.GetAxisRaw("Horizontal");
-            float verticalInput = Input.GetAxisRaw("Vertical");
-            Vector3 rawInputDirection = new Vector3(horizontalInput, 0f, verticalInput).normalized;
-
-            Vector3 targetInputVel = rawInputDirection * keyboardDragSpeed;
-            smoothedInputVelocity = Vector3.Lerp(smoothedInputVelocity, targetInputVel, inputResponseDamping * timeStep);
-
-            targetDragPosition += smoothedInputVelocity * timeStep;
-
-            Vector3 displacement = targetDragPosition - anchorPosition;
-            if (displacement.magnitude > maxDragDistance)
-            {
-                targetDragPosition = anchorPosition + displacement.normalized * maxDragDistance;
-            }
+            Ray mouseRay = mainCamera.ScreenPointToRay(Input.mousePosition);
+            Vector3 targetDragPosition = mouseRay.GetPoint(dragDepth);
 
             var bottomSection = ropeController.allRopeSections[0];
-            
             Vector3 currentPos = bottomSection.pos;
-            Vector3 nextPos = Vector3.SmoothDamp(
-                currentPos, 
-                targetDragPosition, 
-                ref smoothDampVelocityRef, 
-                grabSmoothTime, 
-                float.PositiveInfinity, 
-                timeStep
-            );
 
-            bottomSection.pos = nextPos;
-            bottomSection.vel = smoothDampVelocityRef;
+            Vector3 springForce = (targetDragPosition - currentPos) * mousePullStrength;
             
+            bottomSection.vel += springForce * timeStep;
+
+            
+            bottomSection.vel *= handDamping;
+
             ropeController.allRopeSections[0] = bottomSection;
-
-            dragVelocityHistory[historyWriteIndex] = smoothDampVelocityRef;
-            historyWriteIndex = (historyWriteIndex + 1) % VELOCITY_HISTORY_SIZE;
         }
-    }
-
-
-    private Vector3 GetPeakThrowVelocity()
-    {
-        Vector3 peakVelocity = Vector3.zero;
-        float maxSqMagnitude = 0f;
-
-        for (int i = 0; i < VELOCITY_HISTORY_SIZE; i++)
-        {
-            float sqMag = dragVelocityHistory[i].sqrMagnitude;
-            if (sqMag > maxSqMagnitude)
-            {
-                maxSqMagnitude = sqMag;
-                peakVelocity = dragVelocityHistory[i];
-            }
-        }
-
-        return peakVelocity;
     }
 
     public bool IsDragging()

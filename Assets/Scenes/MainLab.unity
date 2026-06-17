@@ -1380,22 +1380,24 @@ MonoBehaviour:
   particleMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
   showMeshParticles: 1
   boxSize: {x: 10, y: 39.7, z: 10}
-  boundaryDamping: 0.15
+  boundaryDamping: 0.5
   maxParticles: 500000
   particleRadius: 0.008
   gravity: {x: 0, y: -9.81, z: 0}
   maxParticleLifetime: 12
   smoothingRadius: 0.018
   restDensity: 1300
-  gasConstant: 50
+  gasConstant: 25
   viscosity: 5
   particleMass: 0.00025
+  surfaceTension: 1500
   targetCanvas: {fileID: 1267631995}
   fluidPaintColor: {r: 0, g: 0, b: 1, a: 1}
   fluidPaintRadius: 0.008
   hardness: 0.05
   strength: 0.05
   maxPaintsPerFrame: 64
+  isInitialized: 0
 --- !u!4 &471223925
 Transform:
   m_ObjectHideFlags: 0
@@ -4276,14 +4278,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BucketPhysics
   ropeController: {fileID: 1736264499}
   fluidSystem: {fileID: 471223924}
-  dryBucketMass: 10
+  dryBucketMass: 2
   bucketHeight: 0.4
   bucketRadius: 0.15
-  bucketDamping: 0.5
+  twistSpringStiffness: 0.1
+  spinDamping: 0.2
   hasHole: 1
-  currentPaintMass: 10
+  currentPaintMass: 5
   paintDensity: 1000
-  holeRadius: 0.018
+  holeRadius: 0.0018
   dischargeCoefficient: 0.35
   paintDensityFactor: 0.002
   holeLocalOffset: {x: 0, y: -0.4, z: 0}
@@ -4411,13 +4414,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BucketInteractionCustom
   useAutoStart: 1
-  startingOffset: {x: 22, y: -26, z: 1.5}
-  initialPushVelocity: {x: 0, y: 0, z: 1.5}
-  grabKey: 32
-  keyboardDragSpeed: 10
-  maxDragDistance: 5
-  grabSmoothTime: 0.12
-  inputResponseDamping: 8
+  startingOffset: {x: -5, y: 0, z: 0}
+  initialPushVelocity: {x: 2, y: 0, z: 0}
+  mousePullStrength: 150
+  handDamping: 0.85
+  grabRadius: 1
 --- !u!4 &1115624919 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4731941170816802, guid: 5573fbbed95ad6048a1584290e3b5b10, type: 3}

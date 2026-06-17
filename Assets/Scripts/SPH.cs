@@ -45,6 +45,7 @@ public class SPHSystem : MonoBehaviour
     [SerializeField] private float gasConstant = 50.0f;
     [SerializeField] private float viscosity = 0.1f;
     [SerializeField] private float particleMass = 0.00025f;
+    [SerializeField] private float surfaceTension = 1500.0f;
     [Header("Painting Integration")]
     public Paintable targetCanvas;
     public Color fluidPaintColor = Color.blue;
@@ -65,6 +66,12 @@ public class SPHSystem : MonoBehaviour
     public ComputeBuffer ParticleBuffer => particleBuffer;
     public int MaxParticles => maxParticles;
     public float ParticleRadius => particleRadius;
+    [Header("State Tracking")]
+    public bool isInitialized = false;
+    public int ParticlesInBucketCount { get; private set; }
+
+    private ComputeBuffer particlesInBucketBuffer;
+    private uint[] particlesInBucketArray = new uint[1];
 
     private int clearGridKernel, buildGridKernel, densityKernel, forcesKernel, integrateKernel;
     private int threadGroupsSPH, threadGroupsGrid;
@@ -144,6 +151,8 @@ public class SPHSystem : MonoBehaviour
                 density = restDensity, pressure = 0f, lifetime = 0f
             };
         }
+        particlesInBucketBuffer = new ComputeBuffer(1, sizeof(uint));
+
         particleBuffer.SetData(initialData);
         initialData.Dispose();
 
@@ -253,6 +262,8 @@ public class SPHSystem : MonoBehaviour
         );
 
         initialData.Dispose();
+        isInitialized = true;
+
     }
     public void EmitParticles(Vector3 origin, Vector3 velocity, int count)
     {
@@ -338,12 +349,14 @@ public class SPHSystem : MonoBehaviour
         sphCompute.SetFloat("viscosity", viscosity);
         sphCompute.SetFloat("particleMass", particleMass);
         sphCompute.SetVector("gravity", gravity);
+        sphCompute.SetFloat("surfaceTension", surfaceTension); 
         sphCompute.SetVector("boxSize", boxSize);
         sphCompute.SetVector("boxCenter", transform.position);
         sphCompute.SetFloat("boundaryDamping", boundaryDamping);
         sphCompute.SetFloat("particleRadius", particleRadius);
         sphCompute.SetFloat("deltaTime", Mathf.Min(Time.deltaTime, 0.002f));
 
+        
 
         sphCompute.SetFloat("cellSize", h);
 
@@ -407,13 +420,17 @@ public class SPHSystem : MonoBehaviour
         sphCompute.SetBuffer(forcesKernel, "GridCounters", gridCountersBuffer);
         sphCompute.SetBuffer(forcesKernel, "GridCells", gridCellsBuffer);
         sphCompute.Dispatch(forcesKernel, threadGroupsSPH, 1, 1);
-
+        particlesInBucketArray[0] = 0;
+    particlesInBucketBuffer.SetData(particlesInBucketArray);
+    sphCompute.SetBuffer(integrateKernel, "ParticlesInBucketCount", particlesInBucketBuffer);
         sphCompute.SetBuffer(integrateKernel, "Particles", particleBuffer);
         
         sphCompute.SetBuffer(integrateKernel, "PaintHits", paintHitsBuffer);
         sphCompute.SetBuffer(integrateKernel, "PaintHitCount", paintHitCountBuffer);
         
         sphCompute.Dispatch(integrateKernel, threadGroupsSPH, 1, 1);
+        particlesInBucketBuffer.GetData(particlesInBucketArray);
+        ParticlesInBucketCount = (int)particlesInBucketArray[0];
     }
 private void RenderParticles()
     {
@@ -431,6 +448,8 @@ private void RenderParticles()
         if (argsBuffer != null) argsBuffer.Release();
         if (paintHitsBuffer != null) paintHitsBuffer.Release();
         if (paintHitCountBuffer != null) paintHitCountBuffer.Release();
+        if (particlesInBucketBuffer != null) particlesInBucketBuffer.Release();
+
     }
 
     private void OnDrawGizmos()
