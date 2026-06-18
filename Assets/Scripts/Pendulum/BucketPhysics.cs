@@ -75,48 +75,40 @@ public class BucketPhysics : MonoBehaviour
     }
 
     private void CalculateFluidDynamics(float timeStep, Vector3 effAcc, out Vector3 localThrustForce, out Vector3 localThrustTorque)
+{
+    localThrustForce = Vector3.zero;
+    localThrustTorque = Vector3.zero;
+
+    if (!hasHole || fluidSystem == null || !fluidSystem.isInitialized)
+        return;
+
+    if (!massInitialized && fluidSystem.ParticlesInBucketCount > 0)
     {
-        localThrustForce = Vector3.zero;
-        localThrustTorque = Vector3.zero;
-
-        if (!hasHole || fluidSystem == null || !fluidSystem.isInitialized)
-            return;
-
-        if (!massInitialized && fluidSystem.ParticlesInBucketCount > 0)
-        {
-            physicsMassPerParticle = currentPaintMass / (float)fluidSystem.ParticlesInBucketCount;
-            massInitialized = true;
-        }
-
-        float actualSPHMass = fluidSystem.ParticlesInBucketCount * physicsMassPerParticle;
-        float massDrained = Mathf.Max(0f, currentPaintMass - actualSPHMass);
-        currentPaintMass = actualSPHMass;
-        
-        if (currentPaintMass <= 0.0001f || massDrained <= 0.0001f) return;
-
-        float areaBucket = Mathf.PI * (bucketRadius * bucketRadius);
-        float paintHeight = (currentPaintMass / paintDensity) / areaBucket;
-        paintHeight = Mathf.Clamp(paintHeight, 0f, bucketHeight);
-
-        Vector3 effAccDir = effAcc.normalized;
-        Vector3 localUpWorld = transform.rotation * Vector3.up;
-        float alignment = Mathf.Max(0.01f, Vector3.Dot(localUpWorld, -effAccDir));
-        
-        float adjustedHead = paintHeight * alignment;
-        float effectiveG = effAcc.magnitude;
-
-        // calculate theoretical exit velocity (Torricelli's law is still good for the *speed* of the thrust)
-        float exitVelocity = Mathf.Sqrt(2f * effectiveG * adjustedHead);
-        
-        // calculate actual mass flow rate from the GPU drain
-        float actualMassFlowRate = massDrained / timeStep;
-
-        float thrustMagnitude = actualMassFlowRate * exitVelocity;
-        Vector3 exitDirNormalized = paintExitDirectionLocal.normalized;
-        
-        localThrustForce = -exitDirNormalized * thrustMagnitude;
-        localThrustTorque = Vector3.Cross(holeLocalOffset, localThrustForce);
+        physicsMassPerParticle = currentPaintMass / (float)fluidSystem.ParticlesInBucketCount;
+        massInitialized = true;
     }
+    float actualSPHMass = fluidSystem.ParticlesInBucketCount * physicsMassPerParticle;
+    float massDrained = currentPaintMass - actualSPHMass;
+    currentPaintMass = Mathf.Max(0, actualSPHMass);
+
+    if (currentPaintMass <= 0.001f || massDrained <= 0.00001f) return;
+
+    float areaBucket = Mathf.PI * (bucketRadius * bucketRadius);
+    float paintHeight = (currentPaintMass / paintDensity) / areaBucket;
+    paintHeight = Mathf.Clamp(paintHeight, 0f, bucketHeight);
+
+    float effectiveG = effAcc.magnitude;
+
+    // Torricelli's Law for exit velocity: v = sqrt(2 * g * h)
+    float exitVelocity = Mathf.Sqrt(2f * effectiveG * paintHeight);
+
+    float massFlowRate = massDrained / timeStep;
+    float thrustMagnitude = massFlowRate * exitVelocity;
+
+    localThrustForce = -paintExitDirectionLocal.normalized * thrustMagnitude;
+    // Torque = r x F
+    localThrustTorque = Vector3.Cross(holeLocalOffset, localThrustForce);
+}
 
     private void ApplyThrustToRope(Vector3 localThrustForce)
     {
@@ -159,4 +151,36 @@ public class BucketPhysics : MonoBehaviour
 
         transform.rotation = tilt * spin;
     }
+private void OnDrawGizmosSelected()
+{
+    Matrix4x4 oldMatrix = Gizmos.matrix;
+
+    Gizmos.matrix = transform.localToWorldMatrix;
+
+    Gizmos.color = Color.green;
+    Vector3 localBottomCenter = new Vector3(0f, -bucketHeight, 0f);
+    Vector3 localTopCenter = new Vector3(0f, bucketHeight, 0f);
+
+    Gizmos.DrawLine(localBottomCenter, localTopCenter);
+
+    DrawLocalGizmoCircle(localBottomCenter, bucketRadius);
+    DrawLocalGizmoCircle(localTopCenter, bucketRadius);
+
+    Gizmos.color = Color.red;
+    DrawLocalGizmoCircle(holeLocalOffset, holeRadius);
+
+    Gizmos.matrix = oldMatrix;
+}
+
+private void DrawLocalGizmoCircle(Vector3 localCenter, float radius)
+{
+    Vector3 lastPoint = localCenter + new Vector3(radius, 0f, 0f);
+    for (int i = 1; i <= 32; i++)
+    {
+        float angle = (i / 32f) * Mathf.PI * 2.0f;
+        Vector3 nextPoint = localCenter + new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+        Gizmos.DrawLine(lastPoint, nextPoint);
+        lastPoint = nextPoint;
+    }
+}
 }
