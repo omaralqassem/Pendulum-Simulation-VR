@@ -10,18 +10,25 @@ public class BucketInteractionCustom : MonoBehaviour
     public Vector3 startingOffset = new Vector3(2.5f, 0.5f, 0f);
     public Vector3 initialPushVelocity = Vector3.zero;
 
-    [Header("Realistic Mouse Grab Settings")]
-    [Tooltip("How strongly your mouse pulls the bucket (spring stiffness).")]
-    public float mousePullStrength = 150.0f;
-    [Tooltip("How much your hand stabilizes the bucket while holding it (prevents infinite bouncing).")]
-    public float handDamping = 0.85f;
+    [Header("Snappy Mouse Grab Settings")]
+    [Tooltip("How instantly the bucket snaps to your mouse. (Recommended: 800 - 1500 for snappy real-life feel)")]
+    public float mousePullStrength = 1000.0f;
+
+    [Tooltip("Stops the bucket from oscillating. High values make it stop instantly when your mouse stops moving. (Recommended: 15 - 25)")]
+    public float handDamping = 18.0f;
+
     [Tooltip("How close the mouse needs to be to grab the bucket.")]
-    public float grabRadius = 1.0f;
+    public float grabRadius = 1.2f;
+
+    [Tooltip("If true, the hand pull force scales with the bucket's current weight so it doesn't feel sluggish when full of paint.")]
+    public bool accountForBucketMass = true;
 
     private Camera mainCamera;
     private bool isDragging = false;
     private bool autoStarted = false;
-    private float dragDepth; 
+    
+    private Plane dragPlane; 
+    private Vector3 dragOffset;
 
     void Start()
     {
@@ -47,7 +54,7 @@ public class BucketInteractionCustom : MonoBehaviour
         HandleMouseInteraction();
     }
 
-private void InitializeAutoStart()
+    private void InitializeAutoStart()
     {
         Vector3 anchorPosition = ropeController.whatTheRopeIsConnectedTo.position;
         
@@ -82,6 +89,7 @@ private void InitializeAutoStart()
         bottomSection.vel = initialPushVelocity;
         ropeController.allRopeSections[0] = bottomSection;
     }
+
     private void HandleMouseInteraction()
     {
         if (mainCamera == null) return;
@@ -89,15 +97,25 @@ private void InitializeAutoStart()
         if (Input.GetMouseButtonDown(0))
         {
             Vector3 bucketPos = ropeController.allRopeSections[0].pos;
-            
             Ray mouseRay = mainCamera.ScreenPointToRay(Input.mousePosition);
-            Vector3 closestPointOnRay = mouseRay.origin + mouseRay.direction * Vector3.Dot(mouseRay.direction, bucketPos - mouseRay.origin);
+                        float rayDistance = Vector3.Dot(bucketPos - mouseRay.origin, mouseRay.direction);
+            Vector3 closestPointOnRay = mouseRay.origin + mouseRay.direction * rayDistance;
             
             if (Vector3.Distance(closestPointOnRay, bucketPos) <= grabRadius)
             {
                 isDragging = true;
                 
-                dragDepth = Vector3.Distance(mainCamera.transform.position, bucketPos);
+                dragPlane = new Plane(-mainCamera.transform.forward, bucketPos);
+                
+                if (dragPlane.Raycast(mouseRay, out float enter))
+                {
+                    Vector3 grabPoint = mouseRay.GetPoint(enter);
+                    dragOffset = bucketPos - grabPoint;
+                }
+                else
+                {
+                    dragOffset = Vector3.zero;
+                }
             }
         }
 
@@ -116,19 +134,27 @@ private void InitializeAutoStart()
             float timeStep = Time.fixedDeltaTime;
 
             Ray mouseRay = mainCamera.ScreenPointToRay(Input.mousePosition);
-            Vector3 targetDragPosition = mouseRay.GetPoint(dragDepth);
-
-            var bottomSection = ropeController.allRopeSections[0];
-            Vector3 currentPos = bottomSection.pos;
-
-            Vector3 springForce = (targetDragPosition - currentPos) * mousePullStrength;
             
-            bottomSection.vel += springForce * timeStep;
+            if (dragPlane.Raycast(mouseRay, out float enter))
+            {
+                Vector3 worldMousePosition = mouseRay.GetPoint(enter);
+                Vector3 targetDragPosition = worldMousePosition + dragOffset;
 
-            
-            bottomSection.vel *= handDamping;
+                var bottomSection = ropeController.allRopeSections[0];
+                Vector3 currentPos = bottomSection.pos;
+                Vector3 springForce = (targetDragPosition - currentPos) * mousePullStrength;
+                Vector3 dampingForce = -bottomSection.vel * handDamping;
+                Vector3 netAcceleration = springForce + dampingForce;
+                if (accountForBucketMass && bucketPhysics != null)
+                {
+                    float totalMass = bucketPhysics.GetTotalMass();
+                    netAcceleration /= Mathf.Max(0.5f, totalMass);
+                }
 
-            ropeController.allRopeSections[0] = bottomSection;
+                bottomSection.vel += netAcceleration * timeStep;
+
+                ropeController.allRopeSections[0] = bottomSection;
+            }
         }
     }
 

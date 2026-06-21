@@ -222,10 +222,9 @@ void CSDensityPressure(uint3 id : SV_DispatchThreadID) {
         }
     }
 
-    ParticlesSorted[id.x].density = max(densitySum, 0.01);
+    ParticlesSorted[id.x].density = max(densitySum, restDensity * 0.1f);
     ParticlesSorted[id.x].pressure = max(0.0, gasConstant * (ParticlesSorted[id.x].density - restDensity));
 }
-
 [numthreads(256, 1, 1)]
 void CSForces(uint3 id : SV_DispatchThreadID) {
     if (id.x >= numParticles || ParticlesSorted[id.x].lifetime <= 0) return;
@@ -234,9 +233,8 @@ void CSForces(uint3 id : SV_DispatchThreadID) {
     float3 velI = ParticlesSorted[id.x].velocity;
     float3 localPos = mul(bucketWorldToLocal, float4(posI, 1.0)).xyz;
 
-
     if (localPos.y < -bucketHeightCS + 0.01f) {
-        ParticlesSorted[id.x].force = -velI * 0.25f; 
+        ParticlesSorted[id.x].force = -velI * 0.5f; 
         return;
     }
 
@@ -271,11 +269,13 @@ void CSForces(uint3 id : SV_DispatchThreadID) {
                             float r = r2 * r_inv;
                             float3 direction = diff * r_inv;
 
-                            float densJ_clamped = max(ParticlesSorted[k].density, 0.1f);
+                            float densJ_clamped = max(ParticlesSorted[k].density, restDensity * 0.1f);
                             float h_minus_r = h - r;
 
                             float pForce = -particleMass * (presI + ParticlesSorted[k].pressure) / (2.0 * densJ_clamped);
-                            pressureForce += direction * (pForce * spikyGrad * (h_minus_r * h_minus_r));
+                            float forceMag = pForce * spikyGrad * (h_minus_r * h_minus_r);
+                            forceMag = clamp(forceMag, -10000.0f, 10000.0f); 
+                            pressureForce += direction * forceMag;
 
                             float3 vDiff = ParticlesSorted[k].velocity - velI;
                             viscosityForce += vDiff * (viscosity * particleMass * viscLap * h_minus_r / densJ_clamped);
@@ -291,6 +291,7 @@ void CSForces(uint3 id : SV_DispatchThreadID) {
 
     ParticlesSorted[id.x].force = pressureForce + viscosityForce + cohesionForce;
 }
+
 [numthreads(256, 1, 1)]
 void CSIntegrate(uint3 id : SV_DispatchThreadID) {
     if (id.x >= numParticles) return;
@@ -319,7 +320,6 @@ void CSIntegrate(uint3 id : SV_DispatchThreadID) {
     p.velocity += acceleration * deltaTime;
     p.position += p.velocity * deltaTime;
     
-    // box Floor collision
     float floorY = boxCenter.y - (boxSize.y / 2.0) + particleRadius;
     if (p.position.y < floorY) {
         p.position.y = floorY;
@@ -342,7 +342,6 @@ void CSIntegrate(uint3 id : SV_DispatchThreadID) {
         float3 relativeWorldVel = p.velocity - bucketVelocity;
         float3 localVel = mul(bucketWorldToLocal, float4(relativeWorldVel, 0.0)).xyz;
 
-        // Bucket cylinder walls
         float distXZ = length(localPos.xz);
         float maxR = bucketRadiusCS - particleRadius;
         
@@ -375,16 +374,15 @@ void CSIntegrate(uint3 id : SV_DispatchThreadID) {
                 }
 
                 float3 dirToHole = normalize(float3(holeLocalPos.x - localPos.x, 0.0f, holeLocalPos.z - localPos.z));
-                float funnelForce = 1.8f; 
+                float funnelForce = 1.5f; 
                 localVel.xz += dirToHole.xz * funnelForce * deltaTime;
-                localVel.y -= 0.5f * deltaTime;
+                localVel.y -= 0.1f * deltaTime;
 
                 hitBoundary = true;
             }
             else {
-            
-                localVel.xz *= 0.1f; 
-                localVel.y = min(localVel.y, -1.2f); 
+                localVel.xz *= 0.7f; 
+                localVel.y = clamp(localVel.y, -1.8f, -0.1f); 
                 hitBoundary = true;
             }
         }
@@ -395,11 +393,13 @@ void CSIntegrate(uint3 id : SV_DispatchThreadID) {
         }
     }
     
-    if (localPos.y < -bucketHeightCS && localPos.y > -bucketHeightCS - 0.5f) {
+    if (localPos.y < -bucketHeightCS && localPos.y > -bucketHeightCS - 1.5f) {
         float3 relativeWorldVel = p.velocity - bucketVelocity;
         float3 localVel = mul(bucketWorldToLocal, float4(relativeWorldVel, 0.0)).xyz;
-        localVel.x *= 0.98f; 
-        localVel.z *= 0.98f;
+        
+        localVel.x *= 0.75f; 
+        localVel.z *= 0.75f;
+        
         p.velocity = mul(bucketLocalToWorld, float4(localVel, 0.0)).xyz + bucketVelocity;
     }
 

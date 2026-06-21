@@ -1348,7 +1348,7 @@ MonoBehaviour:
   renderMaterial: {fileID: 2100000, guid: 936d681080bf1a245aed340a7029a75e, type: 2}
   particleMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
   showMeshParticles: 0
-  boxSize: {x: 10, y: 39.7, z: 10}
+  boxSize: {x: 25, y: 39.7, z: 25}
   boundaryDamping: 0.15
   maxParticles: 524288
   particleRadius: 0.0017
@@ -1356,8 +1356,8 @@ MonoBehaviour:
   maxParticleLifetime: 12
   smoothingRadius: 0.006
   restDensity: 1300
-  gasConstant: 250
-  viscosity: 0.8
+  gasConstant: 25
+  viscosity: 3.5
   particleMass: 0.0000267
   surfaceTension: 1.5
   targetCanvas: {fileID: 1267631995}
@@ -1367,6 +1367,8 @@ MonoBehaviour:
   strength: 0.5
   maxPaintsPerFrame: 64
   isInitialized: 0
+  simulationSubSteps: 5
+  sphTimeStep: 0.002
 --- !u!4 &471223925
 Transform:
   m_ObjectHideFlags: 0
@@ -4131,7 +4133,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 8bde42c222a620b4a9b6384f40245ed8, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: -1.22
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 8bde42c222a620b4a9b6384f40245ed8, type: 3}
       propertyPath: m_LocalRotation.w
@@ -4256,9 +4258,9 @@ MonoBehaviour:
   currentPaintMass: 13
   paintDensity: 1300
   holeRadius: 0.015
-  dischargeCoefficient: 0.62
+  dischargeCoefficient: 0.35
   paintDensityFactor: 0.002
-  holeLocalOffset: {x: 0, y: -0.4, z: 0}
+  holeLocalOffset: {x: 0, y: -5, z: 0}
   paintExitDirectionLocal: {x: 0, y: -1, z: 0}
 --- !u!120 &984022703
 LineRenderer:
@@ -4382,12 +4384,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b0825295a73f1064cb85a765e3c785e8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BucketInteractionCustom
-  useAutoStart: 1
-  startingOffset: {x: -10, y: 0, z: 0}
-  initialPushVelocity: {x: 5, y: 0, z: 0}
-  mousePullStrength: 150
-  handDamping: 0.85
+  useAutoStart: 0
+  startingOffset: {x: 0, y: 0, z: 0}
+  initialPushVelocity: {x: 0, y: 0, z: 0}
+  mousePullStrength: 1200
+  handDamping: 22
   grabRadius: 1
+  accountForBucketMass: 1
 --- !u!4 &1115624919 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4731941170816802, guid: 5573fbbed95ad6048a1584290e3b5b10, type: 3}
@@ -4548,13 +4551,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1267631990}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: 0.23600563, w: 0.9717517}
-  m_LocalPosition: {x: 0, y: 4.8, z: 0}
-  m_LocalScale: {x: 1.5717423, y: 1, z: 1.9456155}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.1643, y: 2.4, z: 0.193}
+  m_LocalScale: {x: 2.496068, y: 1.2366525, z: 2.598795}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 27.302}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1267631995
 MonoBehaviour:
   m_ObjectHideFlags: 0

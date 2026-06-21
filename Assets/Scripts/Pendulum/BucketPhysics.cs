@@ -31,6 +31,7 @@ public class BucketPhysics : MonoBehaviour
 
     private float physicsMassPerParticle = 0f;
     private bool massInitialized = false;
+    private bool hasReceivedFirstCount = false; 
 
     private float spinAngleRad = 0f;
     private float spinVelocityRad = 0f;
@@ -47,13 +48,30 @@ public class BucketPhysics : MonoBehaviour
         return dryBucketMass + currentPaintMass;
     }
 
+
+    public void InitializeMass(int initialParticleCount)
+    {
+        if (initialParticleCount > 0)
+        {
+            physicsMassPerParticle = currentPaintMass / (float)initialParticleCount;
+            massInitialized = true;
+            Debug.Log($"[BucketPhysics] Mass initialized. Mass per particle: {physicsMassPerParticle} ({initialParticleCount} particles)");
+        }
+    }
+
+    public void ResetState()
+    {
+        massInitialized = false;
+        hasReceivedFirstCount = false;
+    }
+
     void FixedUpdate()
     {
         if (ropeController == null || ropeController.allRopeSections.Count < 2) return;
 
         float timeStep = Time.fixedDeltaTime;
 
-        // effective acceleration calculation with frame-rate independent smoothing
+        // Effective acceleration calculation with frame-rate independent smoothing
         Vector3 currentPivotVel = ropeController.allRopeSections[0].vel;
         Vector3 rawPivotAcc = (currentPivotVel - lastPivotVelocity) / timeStep;
         lastPivotVelocity = currentPivotVel;
@@ -70,45 +88,60 @@ public class BucketPhysics : MonoBehaviour
         ApplyThrustToRope(localThrustForce);
         UpdateRotation(localThrustTorque, timeStep);
 
-        // Lock to end of the rope
         transform.position = ropeController.allRopeSections[0].pos;
     }
 
     private void CalculateFluidDynamics(float timeStep, Vector3 effAcc, out Vector3 localThrustForce, out Vector3 localThrustTorque)
-{
-    localThrustForce = Vector3.zero;
-    localThrustTorque = Vector3.zero;
-
-    if (!hasHole || fluidSystem == null || !fluidSystem.isInitialized)
-        return;
-
-    if (!massInitialized && fluidSystem.ParticlesInBucketCount > 0)
     {
-        physicsMassPerParticle = currentPaintMass / (float)fluidSystem.ParticlesInBucketCount;
-        massInitialized = true;
+        localThrustForce = Vector3.zero;
+        localThrustTorque = Vector3.zero;
+
+        if (!hasHole || fluidSystem == null || !fluidSystem.isInitialized)
+            return;
+
+        int currentCount = fluidSystem.ParticlesInBucketCount;
+
+        if (!hasReceivedFirstCount)
+        {
+            if (currentCount > 0)
+            {
+                hasReceivedFirstCount = true;
+                if (!massInitialized)
+                {
+                    physicsMassPerParticle = currentPaintMass / (float)currentCount;
+                    massInitialized = true;
+                }
+            }
+            else
+            {
+                return;
+            }
+        }
+
+        // Calculate mass dynamically based on remaining particles
+        float actualSPHMass = currentCount * physicsMassPerParticle;
+        float massDrained = currentPaintMass - actualSPHMass;
+        currentPaintMass = Mathf.Max(0f, actualSPHMass);
+
+        if (currentPaintMass <= 0.001f || massDrained <= 0.00001f) return;
+
+        float areaBucket = Mathf.PI * (bucketRadius * bucketRadius);
+        float paintHeight = (currentPaintMass / paintDensity) / areaBucket;
+        paintHeight = Mathf.Clamp(paintHeight, 0f, bucketHeight);
+
+        float effectiveG = effAcc.magnitude;
+
+        // Torricelli's Law for exit velocity: v = sqrt(2 * g * h)
+        float exitVelocity = Mathf.Sqrt(2f * effectiveG * paintHeight);
+
+        float massFlowRate = massDrained / timeStep;
+        float thrustMagnitude = massFlowRate * exitVelocity;
+
+        localThrustForce = -paintExitDirectionLocal.normalized * thrustMagnitude;
+        
+        // Torque = r x F
+        localThrustTorque = Vector3.Cross(holeLocalOffset, localThrustForce);
     }
-    float actualSPHMass = fluidSystem.ParticlesInBucketCount * physicsMassPerParticle;
-    float massDrained = currentPaintMass - actualSPHMass;
-    currentPaintMass = Mathf.Max(0, actualSPHMass);
-
-    if (currentPaintMass <= 0.001f || massDrained <= 0.00001f) return;
-
-    float areaBucket = Mathf.PI * (bucketRadius * bucketRadius);
-    float paintHeight = (currentPaintMass / paintDensity) / areaBucket;
-    paintHeight = Mathf.Clamp(paintHeight, 0f, bucketHeight);
-
-    float effectiveG = effAcc.magnitude;
-
-    // Torricelli's Law for exit velocity: v = sqrt(2 * g * h)
-    float exitVelocity = Mathf.Sqrt(2f * effectiveG * paintHeight);
-
-    float massFlowRate = massDrained / timeStep;
-    float thrustMagnitude = massFlowRate * exitVelocity;
-
-    localThrustForce = -paintExitDirectionLocal.normalized * thrustMagnitude;
-    // Torque = r x F
-    localThrustTorque = Vector3.Cross(holeLocalOffset, localThrustForce);
-}
 
     private void ApplyThrustToRope(Vector3 localThrustForce)
     {
@@ -151,36 +184,36 @@ public class BucketPhysics : MonoBehaviour
 
         transform.rotation = tilt * spin;
     }
-private void OnDrawGizmosSelected()
-{
-    Matrix4x4 oldMatrix = Gizmos.matrix;
 
-    Gizmos.matrix = transform.localToWorldMatrix;
-
-    Gizmos.color = Color.green;
-    Vector3 localBottomCenter = new Vector3(0f, -bucketHeight, 0f);
-    Vector3 localTopCenter = new Vector3(0f, bucketHeight, 0f);
-
-    Gizmos.DrawLine(localBottomCenter, localTopCenter);
-
-    DrawLocalGizmoCircle(localBottomCenter, bucketRadius);
-    DrawLocalGizmoCircle(localTopCenter, bucketRadius);
-
-    Gizmos.color = Color.red;
-    DrawLocalGizmoCircle(holeLocalOffset, holeRadius);
-
-    Gizmos.matrix = oldMatrix;
-}
-
-private void DrawLocalGizmoCircle(Vector3 localCenter, float radius)
-{
-    Vector3 lastPoint = localCenter + new Vector3(radius, 0f, 0f);
-    for (int i = 1; i <= 32; i++)
+    private void OnDrawGizmosSelected()
     {
-        float angle = (i / 32f) * Mathf.PI * 2.0f;
-        Vector3 nextPoint = localCenter + new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
-        Gizmos.DrawLine(lastPoint, nextPoint);
-        lastPoint = nextPoint;
+        Matrix4x4 oldMatrix = Gizmos.matrix;
+        Gizmos.matrix = transform.localToWorldMatrix;
+
+        Gizmos.color = Color.green;
+        Vector3 localBottomCenter = new Vector3(0f, -bucketHeight, 0f);
+        Vector3 localTopCenter = new Vector3(0f, bucketHeight, 0f);
+
+        Gizmos.DrawLine(localBottomCenter, localTopCenter);
+
+        DrawLocalGizmoCircle(localBottomCenter, bucketRadius);
+        DrawLocalGizmoCircle(localTopCenter, bucketRadius);
+
+        Gizmos.color = Color.red;
+        DrawLocalGizmoCircle(holeLocalOffset, holeRadius);
+
+        Gizmos.matrix = oldMatrix;
     }
-}
+
+    private void DrawLocalGizmoCircle(Vector3 localCenter, float radius)
+    {
+        Vector3 lastPoint = localCenter + new Vector3(radius, 0f, 0f);
+        for (int i = 1; i <= 32; i++)
+        {
+            float angle = (i / 32f) * Mathf.PI * 2.0f;
+            Vector3 nextPoint = localCenter + new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+            Gizmos.DrawLine(lastPoint, nextPoint);
+            lastPoint = nextPoint;
+        }
+    }
 }
