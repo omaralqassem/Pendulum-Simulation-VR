@@ -7,8 +7,8 @@ public class BucketPhysics : MonoBehaviour
 
     [Header("Bucket Properties")]
     public float dryBucketMass = 2.0f;       
-    public float bucketHeight = 0.4f;        
-    public float bucketRadius = 0.15f;       
+    public float bucketHeight =5.0f;        
+    public float bucketRadius = 4.0f;       
     
     [Header("Rope Twist Settings (Spinning)")]
     [Tooltip("How strongly the rope resists twisting. Higher values make it untwist faster.")]
@@ -28,8 +28,16 @@ public class BucketPhysics : MonoBehaviour
     [Header("Hole Offsets")]
     public Vector3 holeLocalOffset = new Vector3(0.15f, -0.4f, 0f); 
     public Vector3 paintExitDirectionLocal = new Vector3(0f, -1f, 0.5f); 
+    [Header("Stabilization")]
+    public float stabilizationDuration = 1.5f;
 
-    private float physicsMassPerParticle = 0f;
+
+    public void ResetState()
+    {
+        massInitialized = false;
+        hasReceivedFirstCount = false;
+    }
+   private float physicsMassPerParticle = 0f;
     private bool massInitialized = false;
     private bool hasReceivedFirstCount = false; 
 
@@ -59,11 +67,7 @@ public class BucketPhysics : MonoBehaviour
         }
     }
 
-    public void ResetState()
-    {
-        massInitialized = false;
-        hasReceivedFirstCount = false;
-    }
+  
 
     void FixedUpdate()
     {
@@ -91,7 +95,7 @@ public class BucketPhysics : MonoBehaviour
         transform.position = ropeController.allRopeSections[0].pos;
     }
 
-    private void CalculateFluidDynamics(float timeStep, Vector3 effAcc, out Vector3 localThrustForce, out Vector3 localThrustTorque)
+private void CalculateFluidDynamics(float timeStep, Vector3 effAcc, out Vector3 localThrustForce, out Vector3 localThrustTorque)
     {
         localThrustForce = Vector3.zero;
         localThrustTorque = Vector3.zero;
@@ -101,27 +105,29 @@ public class BucketPhysics : MonoBehaviour
 
         int currentCount = fluidSystem.ParticlesInBucketCount;
 
-        if (!hasReceivedFirstCount)
+        if (fluidSystem.currentSettleTime > 0f)
         {
             if (currentCount > 0)
             {
                 hasReceivedFirstCount = true;
-                if (!massInitialized)
-                {
-                    physicsMassPerParticle = currentPaintMass / (float)currentCount;
-                    massInitialized = true;
-                }
+                massInitialized = true;
+                physicsMassPerParticle = currentPaintMass / (float)currentCount;
             }
-            else
-            {
-                return;
-            }
+            return;
         }
 
-        // Calculate mass dynamically based on remaining particles
+        if (!hasReceivedFirstCount || currentCount <= 0)
+            return;
+
         float actualSPHMass = currentCount * physicsMassPerParticle;
+
+        if (actualSPHMass > currentPaintMass)
+        {
+            actualSPHMass = currentPaintMass;
+        }
+
         float massDrained = currentPaintMass - actualSPHMass;
-        currentPaintMass = Mathf.Max(0f, actualSPHMass);
+        currentPaintMass = actualSPHMass;
 
         if (currentPaintMass <= 0.001f || massDrained <= 0.00001f) return;
 
@@ -130,16 +136,18 @@ public class BucketPhysics : MonoBehaviour
         paintHeight = Mathf.Clamp(paintHeight, 0f, bucketHeight);
 
         float effectiveG = effAcc.magnitude;
-
-        // Torricelli's Law for exit velocity: v = sqrt(2 * g * h)
         float exitVelocity = Mathf.Sqrt(2f * effectiveG * paintHeight);
 
-        float massFlowRate = massDrained / timeStep;
+        float areaHole = Mathf.PI * (holeRadius * holeRadius);
+        float maxVolumeFlow = areaHole * exitVelocity * dischargeCoefficient;
+        float maxMassFlow = maxVolumeFlow * paintDensity;
+        float maxDrained = maxMassFlow * timeStep;
+
+        float validMassDrained = Mathf.Min(massDrained, maxDrained);
+        float massFlowRate = validMassDrained / timeStep;
         float thrustMagnitude = massFlowRate * exitVelocity;
 
         localThrustForce = -paintExitDirectionLocal.normalized * thrustMagnitude;
-        
-        // Torque = r x F
         localThrustTorque = Vector3.Cross(holeLocalOffset, localThrustForce);
     }
 

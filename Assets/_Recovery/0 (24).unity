@@ -1093,7 +1093,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 330585543}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9319693ac3ddafa46bd1ae45c841fda7, type: 3}
   m_Name: 
@@ -1103,8 +1103,8 @@ MonoBehaviour:
   sph: {fileID: 471223924}
   viewRadius: 0.15
   blendStrength: 0.1
-  waterColor: {r: 0, g: 0.17198527, b: 1, a: 0}
-  ambientLight: {r: 0, g: 0.26618338, b: 1, a: 0}
+  waterColor: {r: 0.010416477, g: 0.044742912, b: 0.78867924, a: 0}
+  ambientLight: {r: 0.15844065, g: 0.22952409, b: 0.7056604, a: 0}
   lightSource: {fileID: 410087040}
   maxParticlesToCheck: 1000
 --- !u!1001 &359543081
@@ -1341,13 +1341,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 56cc445fa9cdef54a9bc8c6c85ddfede, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GPUSPH3D
-  fillAmount: 0.5
+  fillAmount: 1
   bucketTransform: {fileID: 1632913531}
   bucketPhysics: {fileID: 984022702}
   sphCompute: {fileID: 7200000, guid: 3e5e0c30a8986fd469a02b9c6b94541c, type: 3}
   renderMaterial: {fileID: 2100000, guid: 936d681080bf1a245aed340a7029a75e, type: 2}
-  particleMesh: {fileID: 0}
-  showMeshParticles: 0
+  particleMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+  showMeshParticles: 1
   boxSize: {x: 25, y: 39.7, z: 25}
   boundaryDamping: 0.15
   maxParticles: 524288
@@ -1367,7 +1367,7 @@ MonoBehaviour:
   strength: 0.5
   maxPaintsPerFrame: 64
   isInitialized: 0
-  simulationSubSteps: 3
+  simulationSubSteps: 10
   sphTimeStep: 0.002
   fluidSettleTime: 1.5
   currentSettleTime: 0
@@ -4251,20 +4251,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BucketPhysics
   ropeController: {fileID: 1736264499}
   fluidSystem: {fileID: 471223924}
-  dryBucketMass: 4
+  dryBucketMass: 2
   bucketHeight: 5
   bucketRadius: 0.15
   twistSpringStiffness: 0.1
   spinDamping: 0.2
   hasHole: 1
-  currentPaintMass: 25
+  currentPaintMass: 13
   paintDensity: 1300
   holeRadius: 0.015
   dischargeCoefficient: 0.35
   paintDensityFactor: 0.002
   holeLocalOffset: {x: 0, y: 0, z: 0}
   paintExitDirectionLocal: {x: 0, y: 0, z: 0}
-  stabilizationDuration: 1.5
+  stabilizationDuration: 1
 --- !u!120 &984022703
 LineRenderer:
   serializedVersion: 3

@@ -1103,10 +1103,10 @@ MonoBehaviour:
   sph: {fileID: 471223924}
   viewRadius: 0.15
   blendStrength: 0.1
-  waterColor: {r: 0, g: 0.17198527, b: 1, a: 0}
-  ambientLight: {r: 0, g: 0.26618338, b: 1, a: 0}
+  waterColor: {r: 0.010416477, g: 0.044742912, b: 0.78867924, a: 0}
+  ambientLight: {r: 0.15844065, g: 0.22952409, b: 0.7056604, a: 0}
   lightSource: {fileID: 410087040}
-  maxParticlesToCheck: 1000
+  maxParticlesToCheck: 10000
 --- !u!1001 &359543081
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1341,7 +1341,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 56cc445fa9cdef54a9bc8c6c85ddfede, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GPUSPH3D
-  fillAmount: 0.5
+  fillAmount: 1
   bucketTransform: {fileID: 1632913531}
   bucketPhysics: {fileID: 984022702}
   sphCompute: {fileID: 7200000, guid: 3e5e0c30a8986fd469a02b9c6b94541c, type: 3}

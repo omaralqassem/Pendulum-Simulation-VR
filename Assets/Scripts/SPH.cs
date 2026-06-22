@@ -109,10 +109,13 @@ public class SPHSystem : MonoBehaviour
 [Range(1, 10)] public int simulationSubSteps = 5;
 [Tooltip("The time-step size for each sub-step. Keep this small (e.g., 0.0015 - 0.0025) to prevent the SPH solver from exploding.")]
 public float sphTimeStep = 0.002f;
+[Header("Simulation Settle")]
+    public float fluidSettleTime = 1.5f;
+    [HideInInspector] public float currentSettleTime;
     
 
     void Start()
-    {
+    {currentSettleTime = fluidSettleTime;
         if (particleMesh == null || particleMesh.vertexCount > 200) 
         {
             particleMesh = GenerateIcosphereMesh(subdivisions: 1); 
@@ -206,7 +209,7 @@ public float sphTimeStep = 0.002f;
     if (bucketTransform == null || bucketPhysics == null)
         return;
 
-    float spacing = Mathf.Pow(particleMass / restDensity, 1.0f / 3.0f);
+    float spacing = Mathf.Pow(particleMass / restDensity, 1.0f / 3.0f) * 1.10f;
     float bucketRadius = bucketPhysics.bucketRadius - particleRadius;
     float bucketBottom = -bucketPhysics.bucketHeight + particleRadius;
     float bucketTop = bucketPhysics.bucketHeight - particleRadius;
@@ -317,6 +320,23 @@ FillFinished:
 
 void Update()
 {
+     if (currentSettleTime > 0f) {
+            currentSettleTime -= Time.deltaTime;
+        }
+
+    if (bucketTransform != null && Time.deltaTime > 0f)
+    {
+        Vector3 currentVel = (bucketTransform.position - lastBucketPosition) / Time.deltaTime;
+        
+        if (currentVel.magnitude > 100f) 
+        {
+            currentVel = Vector3.zero;
+        }
+        
+        bucketVelocity = currentVel;
+        lastBucketPosition = bucketTransform.position;
+    }
+
     if (isInitialized)
     {
         for (int i = 0; i < simulationSubSteps; i++)
@@ -359,8 +379,7 @@ void Update()
             }
         }
     }
-
-   private void RunSimulation(float dt, bool retrieveDataFromGPU)
+private void RunSimulation(float dt, bool retrieveDataFromGPU)
 {
     float h = smoothingRadius;
     
@@ -368,7 +387,13 @@ void Update()
     sphCompute.SetInt("sortedSize", sortedSize);
     sphCompute.SetFloat("smoothingRadius", h);
     sphCompute.SetFloat("restDensity", restDensity);
-    sphCompute.SetFloat("gasConstant", gasConstant);
+    float currentGasConstant = gasConstant;
+    if (currentSettleTime > 0f)
+    {
+        float settleProgress = 1.0f - (currentSettleTime / fluidSettleTime);
+        currentGasConstant = Mathf.Lerp(gasConstant * 0.05f, gasConstant, settleProgress);
+    }
+    sphCompute.SetFloat("gasConstant", currentGasConstant);
     sphCompute.SetFloat("viscosity", viscosity);
     sphCompute.SetFloat("particleMass", particleMass);
     sphCompute.SetVector("gravity", gravity);
@@ -378,6 +403,7 @@ void Update()
     sphCompute.SetFloat("boundaryDamping", boundaryDamping);
     sphCompute.SetFloat("particleRadius", particleRadius);
     sphCompute.SetFloat("deltaTime", dt); // Use the sub-step delta time
+    sphCompute.SetFloat("startupTimer", currentSettleTime);
 
     sphCompute.SetFloat("cellSize", h);
     sphCompute.SetFloat("poly6", 315.0f / (64.0f * Mathf.PI * Mathf.Pow(h, 9)));
@@ -396,9 +422,7 @@ void Update()
 
     if (bucketTransform != null)
     {
-        Vector3 currentVel = (bucketTransform.position - lastBucketPosition) / Time.deltaTime;
-        lastBucketPosition = bucketTransform.position;
-        sphCompute.SetVector("bucketVelocity", currentVel);
+        sphCompute.SetVector("bucketVelocity", bucketVelocity);
     }
 
     if (targetCanvas != null)
@@ -486,8 +510,7 @@ void Update()
         particlesInBucketBuffer.GetData(particlesInBucketArray);
         ParticlesInBucketCount = (int)particlesInBucketArray[0];
     }
-}
-    private void RenderParticles()
+}    private void RenderParticles()
     {
         if (!showMeshParticles) return;
 

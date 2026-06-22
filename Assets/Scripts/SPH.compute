@@ -44,6 +44,7 @@ float3 boxCenter;
 float boundaryDamping;
 float particleRadius;
 float deltaTime;
+float startupTimer;
 float poly6;
 float spikyGrad;
 float viscLap;
@@ -225,6 +226,7 @@ void CSDensityPressure(uint3 id : SV_DispatchThreadID) {
     ParticlesSorted[id.x].density = max(densitySum, restDensity * 0.1f);
     ParticlesSorted[id.x].pressure = max(0.0, gasConstant * (ParticlesSorted[id.x].density - restDensity));
 }
+
 [numthreads(256, 1, 1)]
 void CSForces(uint3 id : SV_DispatchThreadID) {
     if (id.x >= numParticles || ParticlesSorted[id.x].lifetime <= 0) return;
@@ -233,8 +235,8 @@ void CSForces(uint3 id : SV_DispatchThreadID) {
     float3 velI = ParticlesSorted[id.x].velocity;
     float3 localPos = mul(bucketWorldToLocal, float4(posI, 1.0)).xyz;
 
-    if (localPos.y < -bucketHeightCS + 0.01f) {
-        ParticlesSorted[id.x].force = -velI * 0.5f; 
+    if (localPos.y < -bucketHeightCS - 0.1f) {
+        ParticlesSorted[id.x].force = float3(0,0,0); 
         return;
     }
 
@@ -317,7 +319,23 @@ void CSIntegrate(uint3 id : SV_DispatchThreadID) {
     }
 
     float3 acceleration = (p.force / max(p.density, restDensity * 0.1f)) + gravity;
+    
+    float maxAccel = 50000.0f;
+    if (length(acceleration) > maxAccel) {
+        acceleration = normalize(acceleration) * maxAccel;
+    }
+
     p.velocity += acceleration * deltaTime;
+    
+    float maxVel = 100.0f; 
+    if (length(p.velocity) > maxVel) {
+        p.velocity = normalize(p.velocity) * maxVel;
+    }
+    
+    if (startupTimer > 0.0f) {
+        p.velocity *= clamp(1.0f - (12.0f * deltaTime), 0.0f, 1.0f);
+    }
+    
     p.position += p.velocity * deltaTime;
     
     float floorY = boxCenter.y - (boxSize.y / 2.0) + particleRadius;
@@ -330,7 +348,11 @@ void CSIntegrate(uint3 id : SV_DispatchThreadID) {
 
     float3 localPos = mul(bucketWorldToLocal, float4(p.position, 1.0)).xyz;
     
-    if (localPos.y >= -bucketHeightCS) {
+    bool isInsideBucket = (localPos.y >= -bucketHeightCS) && 
+                          (localPos.y <= bucketHeightCS) && 
+                          (length(localPos.xz) <= bucketRadiusCS);
+                          
+    if (isInsideBucket) {
         uint c;
         InterlockedAdd(ParticlesInBucketCount[0], 1, c);
     }
@@ -367,17 +389,21 @@ void CSIntegrate(uint3 id : SV_DispatchThreadID) {
         if (localPos.y < bottomY && localPos.y >= -bucketHeightCS - safetyBuffer) {
             float distToHole = length(localPos.xz - holeLocalPos.xz);
             
-            if (distToHole > (holeRadiusCS - particleRadius)) {
+            bool isHoleOpen = (startupTimer <= 0.0f);
+            
+            if (distToHole > (holeRadiusCS - particleRadius) || !isHoleOpen) {
                 localPos.y = bottomY;
                 if (localVel.y < 0) {
                     localVel.y *= -boundaryDamping;
                 }
 
-                float3 dirToHole = normalize(float3(holeLocalPos.x - localPos.x, 0.0f, holeLocalPos.z - localPos.z));
-                float funnelForce = 1.5f; 
-                localVel.xz += dirToHole.xz * funnelForce * deltaTime;
+                if (isHoleOpen) {
+                    float3 dirToHole = normalize(float3(holeLocalPos.x - localPos.x, 0.0f, holeLocalPos.z - localPos.z));
+                    float funnelForce = 1.5f; 
+                    localVel.xz += dirToHole.xz * funnelForce * deltaTime;
+                }
+                
                 localVel.y -= 0.1f * deltaTime;
-
                 hitBoundary = true;
             }
             else {

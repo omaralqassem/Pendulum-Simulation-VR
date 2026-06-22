@@ -25,14 +25,11 @@ float particleRadius;
 float blendStrength;
 float4 waterColor;
 float4 _AmbientLight;
-
 int maxParticlesToCheck; 
-
 float3 GetRayDir(float2 uv, float4x4 camToWorld, float4x4 camInvProj) {
     float4 worldPos = mul(camToWorld, mul(camInvProj, float4(uv * 2.0 - 1.0, 1.0, 1.0)));
     return normalize(worldPos.xyz / worldPos.w - _CameraPos);
 }
-
 [numthreads(8,8,1)]
 void CSRaymarching (uint3 id : SV_DispatchThreadID) {
     uint2 res;
