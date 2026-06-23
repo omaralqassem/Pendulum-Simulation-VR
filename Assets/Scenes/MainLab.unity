@@ -960,7 +960,6 @@ GameObject:
   - component: {fileID: 330585545}
   - component: {fileID: 330585544}
   - component: {fileID: 330585547}
-  - component: {fileID: 330585548}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -1086,27 +1085,6 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
---- !u!114 &330585548
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 330585543}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9319693ac3ddafa46bd1ae45c841fda7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::FluidRayMarching
-  raymarching: {fileID: 7200000, guid: a615c8525f1df254cafc2168566745b1, type: 3}
-  cam: {fileID: 330585545}
-  sph: {fileID: 471223924}
-  viewRadius: 0.15
-  blendStrength: 0.1
-  waterColor: {r: 0, g: 0.17198527, b: 1, a: 0}
-  ambientLight: {r: 0, g: 0.26618338, b: 1, a: 0}
-  lightSource: {fileID: 410087040}
-  maxParticlesToCheck: 1000
 --- !u!1001 &359543081
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1347,7 +1325,7 @@ MonoBehaviour:
   sphCompute: {fileID: 7200000, guid: 3e5e0c30a8986fd469a02b9c6b94541c, type: 3}
   renderMaterial: {fileID: 2100000, guid: 936d681080bf1a245aed340a7029a75e, type: 2}
   particleMesh: {fileID: 0}
-  showMeshParticles: 0
+  showMeshParticles: 1
   boxSize: {x: 25, y: 39.7, z: 25}
   boundaryDamping: 0.15
   maxParticles: 524288
@@ -1367,7 +1345,7 @@ MonoBehaviour:
   strength: 0.5
   maxPaintsPerFrame: 64
   isInitialized: 0
-  simulationSubSteps: 3
+  simulationSubSteps: 5
   sphTimeStep: 0.002
   fluidSettleTime: 1.5
   currentSettleTime: 0
