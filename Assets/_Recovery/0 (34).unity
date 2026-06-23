@@ -1036,7 +1036,7 @@ Transform:
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 24.7, z: -63.5}
+  m_LocalPosition: {x: 0, y: 24.7, z: -42.14}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1348,9 +1348,9 @@ MonoBehaviour:
   renderMaterial: {fileID: 2100000, guid: 936d681080bf1a245aed340a7029a75e, type: 2}
   particleMesh: {fileID: 0}
   showMeshParticles: 0
-  boxSize: {x: 42, y: 39.7, z: 37}
+  boxSize: {x: 25, y: 39.7, z: 25}
   boundaryDamping: 0.15
-  maxParticles: 324288
+  maxParticles: 524288
   particleRadius: 0.017
   gravity: {x: 0, y: -9.81, z: 0}
   maxParticleLifetime: 12
@@ -4390,10 +4390,12 @@ MonoBehaviour:
   useAutoStart: 1
   startingOffset: {x: -5, y: 0, z: 0}
   initialPushVelocity: {x: -2, y: 0, z: 6}
+  mousePullStrength: 1200
+  handDamping: 22
   grabRadius: 1
-  pushForce: 700
-  handDamping: 70
   accountForBucketMass: 1
+  throwMultiplier: 1.5
+  throwThreshold: 50
 --- !u!4 &1115624919 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4731941170816802, guid: 5573fbbed95ad6048a1584290e3b5b10, type: 3}
@@ -4556,7 +4558,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0.1643, y: 2.4, z: 0.193}
-  m_LocalScale: {x: 4, y: 2, z: 4}
+  m_LocalScale: {x: 2.496068, y: 1.2366525, z: 2.598795}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -5012,14 +5014,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RopeControllerRealistic
   whatTheRopeIsConnectedTo: {fileID: 1828742862}
   whatIsHangingFromTheRope: {fileID: 984022701}
-  ropeSectionLength: 1
-  kRope: 4500
-  dRope: 0.04
-  aRope: 0.002
-  mRopeSection: 0.8
-  numberSection: 35
-  iterations: 3
-  ropeWidth: 0.08
+  ropeSectionLength: 2
+  kRope: 150
+  dRope: 2
+  aRope: 0.05
+  mRopeSection: 0.2
+  numberSection: 20
+  iterations: 5
+  ropeWidth: 0.3
 --- !u!4 &1736264500
 Transform:
   m_ObjectHideFlags: 0

@@ -1036,7 +1036,7 @@ Transform:
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 24.7, z: -63.5}
+  m_LocalPosition: {x: 0, y: 24.7, z: -59.3}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1348,7 +1348,7 @@ MonoBehaviour:
   renderMaterial: {fileID: 2100000, guid: 936d681080bf1a245aed340a7029a75e, type: 2}
   particleMesh: {fileID: 0}
   showMeshParticles: 0
-  boxSize: {x: 42, y: 39.7, z: 37}
+  boxSize: {x: 25, y: 39.7, z: 25}
   boundaryDamping: 0.15
   maxParticles: 324288
   particleRadius: 0.017
@@ -4251,13 +4251,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BucketPhysics
   ropeController: {fileID: 1736264499}
   fluidSystem: {fileID: 471223924}
-  dryBucketMass: 4
-  bucketHeight: 5
+  dryBucketMass: 5
+  bucketHeight: 4
   bucketRadius: 0.15
   twistSpringStiffness: 0.1
   spinDamping: 0.2
   hasHole: 1
-  currentPaintMass: 25
+  currentPaintMass: 20
   paintDensity: 1300
   holeRadius: 0.015
   dischargeCoefficient: 0.35
@@ -4391,8 +4391,8 @@ MonoBehaviour:
   startingOffset: {x: -5, y: 0, z: 0}
   initialPushVelocity: {x: -2, y: 0, z: 6}
   grabRadius: 1
-  pushForce: 700
-  handDamping: 70
+  pushForce: 800
+  handDamping: 80
   accountForBucketMass: 1
 --- !u!4 &1115624919 stripped
 Transform:
@@ -4556,7 +4556,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0.1643, y: 2.4, z: 0.193}
-  m_LocalScale: {x: 4, y: 2, z: 4}
+  m_LocalScale: {x: 2.496068, y: 1.2366525, z: 2.598795}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -5013,12 +5013,12 @@ MonoBehaviour:
   whatTheRopeIsConnectedTo: {fileID: 1828742862}
   whatIsHangingFromTheRope: {fileID: 984022701}
   ropeSectionLength: 1
-  kRope: 4500
-  dRope: 0.04
+  kRope: 4000
+  dRope: 0.002
   aRope: 0.002
-  mRopeSection: 0.8
+  mRopeSection: 0.7
   numberSection: 35
-  iterations: 3
+  iterations: 5
   ropeWidth: 0.08
 --- !u!4 &1736264500
 Transform:

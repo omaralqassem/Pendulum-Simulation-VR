@@ -1036,7 +1036,7 @@ Transform:
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 24.7, z: -63.5}
+  m_LocalPosition: {x: 0, y: 24.7, z: -57.9}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1348,7 +1348,7 @@ MonoBehaviour:
   renderMaterial: {fileID: 2100000, guid: 936d681080bf1a245aed340a7029a75e, type: 2}
   particleMesh: {fileID: 0}
   showMeshParticles: 0
-  boxSize: {x: 42, y: 39.7, z: 37}
+  boxSize: {x: 25, y: 39.7, z: 25}
   boundaryDamping: 0.15
   maxParticles: 324288
   particleRadius: 0.017
@@ -4391,8 +4391,8 @@ MonoBehaviour:
   startingOffset: {x: -5, y: 0, z: 0}
   initialPushVelocity: {x: -2, y: 0, z: 6}
   grabRadius: 1
-  pushForce: 700
-  handDamping: 70
+  pushForce: 400
+  handDamping: 12
   accountForBucketMass: 1
 --- !u!4 &1115624919 stripped
 Transform:
@@ -4556,7 +4556,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0.1643, y: 2.4, z: 0.193}
-  m_LocalScale: {x: 4, y: 2, z: 4}
+  m_LocalScale: {x: 2.496068, y: 1.2366525, z: 2.598795}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -5016,10 +5016,10 @@ MonoBehaviour:
   kRope: 4500
   dRope: 0.04
   aRope: 0.002
-  mRopeSection: 0.8
+  mRopeSection: 0.7
   numberSection: 35
   iterations: 3
-  ropeWidth: 0.08
+  ropeWidth: 0.07
 --- !u!4 &1736264500
 Transform:
   m_ObjectHideFlags: 0
