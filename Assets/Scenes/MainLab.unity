@@ -1328,22 +1328,26 @@ MonoBehaviour:
   showMeshParticles: 1
   boxSize: {x: 42, y: 39.7, z: 37}
   boundaryDamping: 0.4
-  maxParticles: 424288
-  particleRadius: 0.0045
+  maxParticles: 324288
+  particleRadius: 0.0015
   gravity: {x: 0, y: -9.81, z: 0}
   maxParticleLifetime: 20
   smoothingRadius: 0.009
   restDensity: 1000
-  gasConstant: 250
+  gasConstant: 150
   viscosity: 1.5
   particleMass: 0.0000306
   surfaceTension: 20
+  dryingRate: 0.01
+  wetFriction: 5
+  dryFriction: 80
+  dryingViscosityScale: 30
   targetCanvas: {fileID: 1267631995}
   fluidPaintColor: {r: 0, g: 0, b: 1, a: 1}
   fluidPaintRadius: 0.015
   hardness: 0.5
   strength: 0.5
-  maxPaintsPerFrame: 64
+  maxPaintsPerFrame: 256
   isInitialized: 0
   simulationSubSteps: 3
   sphTimeStep: 0.002
@@ -4231,7 +4235,7 @@ MonoBehaviour:
   fluidSystem: {fileID: 471223924}
   dryBucketMass: 2
   bucketHeight: 4
-  bucketRadius: 0.15
+  bucketRadius: 0.03
   twistSpringStiffness: 0.1
   spinDamping: 0.2
   hasHole: 1
@@ -4367,7 +4371,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BucketInteractionCustom
   useAutoStart: 1
   startingOffset: {x: -5, y: 0, z: 0}
-  initialPushVelocity: {x: -5, y: 0, z: 6}
+  initialPushVelocity: {x: -2, y: 0, z: 6}
   grabRadius: 1
   pushForce: 700
   handDamping: 70
@@ -4533,7 +4537,7 @@ Transform:
   m_GameObject: {fileID: 1267631990}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.1643, y: 2.4, z: 0.193}
+  m_LocalPosition: {x: 0.1643, y: 7.6, z: 2}
   m_LocalScale: {x: 4, y: 2, z: 4}
   m_ConstrainProportionsScale: 0
   m_Children: []

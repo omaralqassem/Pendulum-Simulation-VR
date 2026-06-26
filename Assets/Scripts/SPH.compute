@@ -15,6 +15,7 @@ struct Particle {
     float density;
     float pressure;
     float lifetime;
+    float dryState; 
 };
 
 RWStructuredBuffer<Particle> Particles;       
@@ -61,10 +62,17 @@ float3 bucketVelocity;
 RWStructuredBuffer<float3> PaintHits;
 RWStructuredBuffer<uint> PaintHitCount;
 float4x4 canvasWorldToLocal;
+float4x4 canvasLocalToWorld; 
 float3 canvasLocalCenter;
 float3 canvasLocalExtents;
 
-float surfaceTension; 
+float surfaceTension;
+
+float dryingRate;        
+float wetFriction;          
+float dryFriction;          
+float dryingViscosityScale; 
+
 uint GetHash(float3 pos) {
     int3 cell = (int3)((pos + float3(10000.0f, 10000.0f, 10000.0f)) / cellSize);
     uint3 wrapped = (uint3)(cell & (HASH_DIM - 1));
@@ -156,6 +164,7 @@ void CSReorderParticles(uint3 id : SV_DispatchThreadID) {
         p.density = 0.01;
         p.pressure = 0;
         p.lifetime = 0;
+        p.dryState = 0.0;
     }
     ParticlesSorted[id.x] = p;
 }
@@ -188,6 +197,7 @@ void CSBuildGridOffsets(uint3 id : SV_DispatchThreadID) {
         }
     }
 }
+
 [numthreads(256, 1, 1)]
 void CSDensityPressure(uint3 id : SV_DispatchThreadID) {
     if (id.x >= numParticles || ParticlesSorted[id.x].lifetime <= 0) return;
@@ -228,12 +238,15 @@ void CSDensityPressure(uint3 id : SV_DispatchThreadID) {
     ParticlesSorted[id.x].density = max(densitySum, restDensity * 0.1f);
     ParticlesSorted[id.x].pressure = max(0.0, gasConstant * (ParticlesSorted[id.x].density - restDensity));
 }
+
 [numthreads(256, 1, 1)]
 void CSForces(uint3 id : SV_DispatchThreadID) {
     if (id.x >= numParticles || ParticlesSorted[id.x].lifetime <= 0) return;
 
     float3 posI = ParticlesSorted[id.x].position;
     float3 velI = ParticlesSorted[id.x].velocity;
+    float localDryI = ParticlesSorted[id.x].dryState;
+
     float3 localPos = mul(bucketWorldToLocal, float4(posI, 1.0)).xyz;
     if (localPos.y < -bucketHeightCS - 0.1f) {
         ParticlesSorted[id.x].force = float3(0,0,0); 
@@ -274,6 +287,7 @@ void CSForces(uint3 id : SV_DispatchThreadID) {
                             float nDensClamped = max(ParticlesSorted[k].density, restDensity * 0.1f);
                             float nPress = ParticlesSorted[k].pressure;
                             float3 nVel = ParticlesSorted[k].velocity;
+                            float localDryK = ParticlesSorted[k].dryState;
 
                             float r_inv = rsqrt(r2);
                             float r = r2 * r_inv;
@@ -284,7 +298,9 @@ void CSForces(uint3 id : SV_DispatchThreadID) {
                             pressureForce += direction * forceMag;
 
                             float3 vDiff = nVel - velI;
-                            viscosityForce += vDiff * (massViscLap * h_minus_r / nDensClamped);
+                            
+                            float dryViscosityMultiplier = 1.0f + (localDryI + localDryK) * dryingViscosityScale;
+                            viscosityForce += vDiff * (massViscLap * h_minus_r / nDensClamped) * dryViscosityMultiplier;
 
                             cohesionForce -= direction * (massCohesion * (h_minus_r / h) * h_minus_r);
                         }
@@ -296,6 +312,7 @@ void CSForces(uint3 id : SV_DispatchThreadID) {
 
     ParticlesSorted[id.x].force = pressureForce + viscosityForce + cohesionForce;
 }
+
 [numthreads(256, 1, 1)]
 void CSIntegrate(uint3 id : SV_DispatchThreadID) {
     if (id.x >= numParticles) return;
@@ -311,6 +328,7 @@ void CSIntegrate(uint3 id : SV_DispatchThreadID) {
         p.density = 0.0f;
         p.pressure = 0.0f;
         p.lifetime = -1.0f;
+        p.dryState = 0.0f;
         
         ParticlesSorted[id.x] = p;
         uint originalIndex = GridKeyValues[id.x].y;
@@ -336,7 +354,7 @@ void CSIntegrate(uint3 id : SV_DispatchThreadID) {
         p.velocity *= (maxVel * rsqrt(velSq)); 
     }
     
-if (startupTimer > 0.0f) {
+    if (startupTimer > 0.0f) {
         float maxSettleVel = 1.5f; 
         float vSq = dot(p.velocity, p.velocity);
         if (vSq > maxSettleVel * maxSettleVel) {
@@ -354,7 +372,6 @@ if (startupTimer > 0.0f) {
     }
 
     float3 localPos = mul(bucketWorldToLocal, float4(p.position, 1.0)).xyz;
-    
     float localDistXZSq = dot(localPos.xz, localPos.xz);
     
     bool isInsideBucket = (localPos.y >= -bucketHeightCS) && 
@@ -366,6 +383,70 @@ if (startupTimer > 0.0f) {
         InterlockedAdd(ParticlesInBucketCount[0], 1, c);
     }
     
+    float safetyBuffer = max(0.015f, particleRadius * 2.0f);
+
+    if (localPos.y >= -bucketHeightCS - safetyBuffer) {
+        bool hitBoundary = false;
+        float3 relativeWorldVel = p.velocity - bucketVelocity;
+        float3 localVel = mul(bucketWorldToLocal, float4(relativeWorldVel, 0.0)).xyz;
+
+        float maxR = bucketRadiusCS - particleRadius;
+        float maxRSq = maxR * maxR;
+        
+        if (localDistXZSq > maxRSq && localPos.y >= -bucketHeightCS) {
+            float invDist = rsqrt(localDistXZSq);
+            float3 normalXZ = float3(localPos.x * invDist, 0, localPos.z * invDist);
+            localPos.xz = normalXZ.xz * maxR;
+            
+            float velDot = dot(localVel, normalXZ);
+            if (velDot > 0) {
+                localVel -= normalXZ * velDot * (1.0 + boundaryDamping);
+            }
+            hitBoundary = true;
+        }
+        
+        float topY = bucketHeightCS - particleRadius;
+        if (localPos.y > topY) {
+            localPos.y = topY;
+            if (localVel.y > 0) localVel.y *= -boundaryDamping;
+            hitBoundary = true;
+        }
+
+        float bottomY = -bucketHeightCS + particleRadius;
+        if (localPos.y < bottomY && localPos.y >= -bucketHeightCS - safetyBuffer) {
+            float2 toHole = localPos.xz - holeLocalPos.xz;
+            float distToHoleSq = dot(toHole, toHole);
+            float holeLimit = holeRadiusCS - particleRadius;
+            
+            bool isHoleOpen = (startupTimer <= 0.0f);
+            
+            if (distToHoleSq > (holeLimit * holeLimit) || !isHoleOpen) {
+                localPos.y = bottomY;
+                if (localVel.y < 0) {
+                    localVel.y *= -boundaryDamping;
+                }
+
+                if (isHoleOpen && distToHoleSq > 0.000001f) {
+                    float2 dirToHoleXZ = -toHole * rsqrt(distToHoleSq);
+                    float funnelForce = 0.15f;
+                    localVel.xz += dirToHoleXZ * funnelForce * deltaTime;
+                }
+                
+                localVel.y -= 0.1f * deltaTime;
+                hitBoundary = true;
+            }
+            else {
+                localVel.xz *= 0.02f; 
+                localVel.y = clamp(localVel.y, -1.5f, -0.1f); 
+                hitBoundary = true;
+            }
+        }
+
+        if (hitBoundary) {
+            p.position = mul(bucketLocalToWorld, float4(localPos, 1.0)).xyz;
+            p.velocity = mul(bucketLocalToWorld, float4(localVel, 0.0)).xyz + bucketVelocity;
+        }
+    }
     
     if (localPos.y < -bucketHeightCS && localPos.y > -bucketHeightCS - 1.5f) {
         float3 relativeWorldVel = p.velocity - bucketVelocity;
@@ -380,19 +461,60 @@ if (startupTimer > 0.0f) {
     float3 localCanvasPos = mul(canvasWorldToLocal, float4(p.position, 1.0)).xyz;
     float3 diff = abs(localCanvasPos - canvasLocalCenter);
     
-    if (diff.x < canvasLocalExtents.x && diff.y < canvasLocalExtents.y && diff.z < canvasLocalExtents.z) {
-        uint count;
-        InterlockedAdd(PaintHitCount[0], 1, count);
-        if (count < 256) {
-            PaintHits[count] = p.position; 
+    bool onCanvas = (diff.x < canvasLocalExtents.x && diff.y < canvasLocalExtents.y && diff.z < canvasLocalExtents.z);
+    
+    if (onCanvas) {
+        p.dryState = min(p.dryState + deltaTime * dryingRate, 1.0f);
+        
+        float3 localNormal = float3(0.0f, 0.0f, 1.0f);
+        if (canvasLocalExtents.y < canvasLocalExtents.x && canvasLocalExtents.y < canvasLocalExtents.z) {
+            localNormal = float3(0.0f, 1.0f, 0.0f);
+        } else if (canvasLocalExtents.x < canvasLocalExtents.y && canvasLocalExtents.x < canvasLocalExtents.z) {
+            localNormal = float3(1.0f, 0.0f, 0.0f); 
         }
         
-        p.lifetime = -1.0f; 
-        p.position = float3(99999.0f, 99999.0f, 99999.0f); 
-        p.velocity = float3(0.0f, 0.0f, 0.0f);
-        p.force = float3(0.0f, 0.0f, 0.0f);
-        p.density = 0.0f;
-        p.pressure = 0.0f;
+        float3 localVel = mul(canvasWorldToLocal, float4(p.velocity, 0.0)).xyz;
+        float3 localGravity = mul(canvasWorldToLocal, float4(gravity, 0.0)).xyz;
+        float3 localForce = mul(canvasWorldToLocal, float4(p.force, 0.0)).xyz;
+        
+        float3 velTangent = localVel - dot(localVel, localNormal) * localNormal;
+        float3 gravityTangent = localGravity - dot(localGravity, localNormal) * localNormal;
+        float3 forceTangent = localForce - dot(localForce, localNormal) * localNormal;
+        
+        float3 localAcc = gravityTangent + (forceTangent / max(p.density, restDensity * 0.1f));
+        
+        velTangent += localAcc * deltaTime;
+        
+        float currentFriction = lerp(wetFriction, dryFriction, p.dryState);
+        velTangent *= max(0.0f, 1.0f - currentFriction * deltaTime);
+        
+        localVel = velTangent;
+        
+        float surfaceDist = dot(canvasLocalExtents, localNormal);
+        float currentSide = sign(dot(localCanvasPos - canvasLocalCenter, localNormal));
+        if (currentSide == 0.0f) currentSide = 1.0f; 
+        
+        float3 surfaceLocalCenter = canvasLocalCenter + localNormal * (surfaceDist * currentSide);
+        localCanvasPos = localCanvasPos - dot(localCanvasPos - surfaceLocalCenter, localNormal) * localNormal;
+        
+        p.position = mul(canvasLocalToWorld, float4(localCanvasPos, 1.0)).xyz;
+        p.velocity = mul(canvasLocalToWorld, float4(localVel, 0.0)).xyz;
+
+        if (p.dryState < 1.0f) {
+            uint count;
+            InterlockedAdd(PaintHitCount[0], 1, count);
+            if (count < 256) {
+                PaintHits[count] = p.position; 
+            }
+        } else {
+            // once fully dry, recycle the physical particle
+            p.lifetime = -1.0f; 
+            p.position = float3(99999.0f, 99999.0f, 99999.0f); 
+            p.velocity = float3(0.0f, 0.0f, 0.0f);
+            p.force = float3(0.0f, 0.0f, 0.0f);
+            p.density = 0.0f;
+            p.pressure = 0.0f;
+        }
     }
 
     ParticlesSorted[id.x] = p;
