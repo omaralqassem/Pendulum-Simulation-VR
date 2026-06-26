@@ -459,19 +459,30 @@ void CSIntegrate(uint3 id : SV_DispatchThreadID) {
     }
 
     float3 localCanvasPos = mul(canvasWorldToLocal, float4(p.position, 1.0)).xyz;
-    float3 diff = abs(localCanvasPos - canvasLocalCenter);
     
-    bool onCanvas = (diff.x < canvasLocalExtents.x && diff.y < canvasLocalExtents.y && diff.z < canvasLocalExtents.z);
+    float3 localNormal = float3(0.0f, 0.0f, 1.0f); 
+    if (canvasLocalExtents.y < canvasLocalExtents.x && canvasLocalExtents.y < canvasLocalExtents.z) {
+        localNormal = float3(0.0f, 1.0f, 0.0f);
+    } else if (canvasLocalExtents.x < canvasLocalExtents.y && canvasLocalExtents.x < canvasLocalExtents.z) {
+        localNormal = float3(1.0f, 0.0f, 0.0f); 
+    }
+    
+    float surfaceDist = dot(canvasLocalExtents, localNormal);
+    float distPerp = abs(dot(localCanvasPos - canvasLocalCenter, localNormal));
+    float distToSurface = abs(distPerp - surfaceDist);
+    
+    float3 localPosTangent = localCanvasPos - dot(localCanvasPos - canvasLocalCenter, localNormal) * localNormal;
+    float3 diffTangent = abs(localPosTangent - canvasLocalCenter);
+    
+    bool inside2D = (diffTangent.x < canvasLocalExtents.x) && 
+                    (diffTangent.y < canvasLocalExtents.y) && 
+                    (diffTangent.z < canvasLocalExtents.z);
+                    
+    float contactThreshold = max(0.15f, particleRadius * 4.0f);
+    bool onCanvas = inside2D && (distToSurface < contactThreshold);
     
     if (onCanvas) {
         p.dryState = min(p.dryState + deltaTime * dryingRate, 1.0f);
-        
-        float3 localNormal = float3(0.0f, 0.0f, 1.0f);
-        if (canvasLocalExtents.y < canvasLocalExtents.x && canvasLocalExtents.y < canvasLocalExtents.z) {
-            localNormal = float3(0.0f, 1.0f, 0.0f);
-        } else if (canvasLocalExtents.x < canvasLocalExtents.y && canvasLocalExtents.x < canvasLocalExtents.z) {
-            localNormal = float3(1.0f, 0.0f, 0.0f); 
-        }
         
         float3 localVel = mul(canvasWorldToLocal, float4(p.velocity, 0.0)).xyz;
         float3 localGravity = mul(canvasWorldToLocal, float4(gravity, 0.0)).xyz;
@@ -490,7 +501,6 @@ void CSIntegrate(uint3 id : SV_DispatchThreadID) {
         
         localVel = velTangent;
         
-        float surfaceDist = dot(canvasLocalExtents, localNormal);
         float currentSide = sign(dot(localCanvasPos - canvasLocalCenter, localNormal));
         if (currentSide == 0.0f) currentSide = 1.0f; 
         
@@ -507,7 +517,6 @@ void CSIntegrate(uint3 id : SV_DispatchThreadID) {
                 PaintHits[count] = p.position; 
             }
         } else {
-            // once fully dry, recycle the physical particle
             p.lifetime = -1.0f; 
             p.position = float3(99999.0f, 99999.0f, 99999.0f); 
             p.velocity = float3(0.0f, 0.0f, 0.0f);
