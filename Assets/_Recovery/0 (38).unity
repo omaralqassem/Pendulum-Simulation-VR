@@ -1319,30 +1319,32 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 56cc445fa9cdef54a9bc8c6c85ddfede, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GPUSPH3D
-  fillAmount: 1
-  bucketTransform: {fileID: 984022701}
+  fillAmount: 0.5
+  bucketTransform: {fileID: 1632913531}
   bucketPhysics: {fileID: 984022702}
   sphCompute: {fileID: 7200000, guid: 3e5e0c30a8986fd469a02b9c6b94541c, type: 3}
   renderMaterial: {fileID: 2100000, guid: 936d681080bf1a245aed340a7029a75e, type: 2}
   particleMesh: {fileID: 0}
   showMeshParticles: 1
   boxSize: {x: 42, y: 39.7, z: 37}
-  boundaryDamping: 0.4
+  boundaryDamping: 0.15
   maxParticles: 424288
-  particleRadius: 0.0045
+  particleRadius: 0.017
   gravity: {x: 0, y: -9.81, z: 0}
-  maxParticleLifetime: 20
-  smoothingRadius: 0.009
-  restDensity: 1000
-  gasConstant: 20
-  viscosity: 2
-  particleMass: 0.0000306
-  surfaceTension: 20
+  maxParticleLifetime: 12
+  smoothingRadius: 0.006
+  restDensity: 1300
+  gasConstant: 10
+  viscosity: 1
+  particleMass: 0.0000267
+  surfaceTension: 1.5
   targetCanvas: {fileID: 1267631995}
   fluidPaintColor: {r: 0, g: 0, b: 1, a: 1}
-  fluidPaintRadius: 0.015
-  hardness: 0.6
-  strength: 0.6
+  fluidPaintRadius: 0.008
+  fluidSloshForce: {x: 0, y: 0, z: 0}
+  fluidSloshTorque: {x: 0, y: 0, z: 0}
+  hardness: 0.5
+  strength: 0.5
   maxPaintsPerFrame: 64
   isInitialized: 0
   simulationSubSteps: 3
@@ -4229,20 +4231,22 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BucketPhysics
   ropeController: {fileID: 1736264499}
   fluidSystem: {fileID: 471223924}
-  dryBucketMass: 2
-  bucketHeight: 4
+  dryBucketMass: 4
+  bucketHeight: 5
   bucketRadius: 0.15
+  handleHeight: 6
   twistSpringStiffness: 0.1
   spinDamping: 0.2
   hasHole: 1
-  currentPaintMass: 15
-  paintDensity: 1000
-  holeRadius: 0.03
-  dischargeCoefficient: 0.35
-  paintDensityFactor: 0.002
-  holeLocalOffset: {x: 0, y: -4, z: 0}
-  paintExitDirectionLocal: {x: 0, y: -1, z: 0}
-  stabilizationDuration: 1.5
+  currentPaintMass: 13
+  paintDensity: 1300
+  holeRadius: 0.015
+  baseDischargeCoefficient: 0.65
+  viscousChokeFactor: 2.5
+  fluidWallFriction: 0.8
+  sloshForceMultiplier: 1
+  holeLocalOffset: {x: 0, y: 0, z: 0}
+  paintExitDirectionLocal: {x: 0, y: 0, z: 0}
 --- !u!120 &984022703
 LineRenderer:
   serializedVersion: 3
@@ -4367,7 +4371,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BucketInteractionCustom
   useAutoStart: 1
   startingOffset: {x: -5, y: 0, z: 0}
-  initialPushVelocity: {x: -5, y: 0, z: 6}
+  initialPushVelocity: {x: -2, y: 0, z: 6}
   grabRadius: 1
   pushForce: 700
   handDamping: 70
@@ -4990,13 +4994,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RopeControllerRealistic
   whatTheRopeIsConnectedTo: {fileID: 1828742862}
   whatIsHangingFromTheRope: {fileID: 984022701}
-  ropeSectionLength: 1
-  kRope: 3500
-  dRope: 0.9
+  ropeSectionLength: 2
+  kRope: 4500
+  dRope: 0.04
   aRope: 0.002
-  mRopeSection: 0.8
+  mRopeSection: 0.9
   numberSection: 35
-  iterations: 15
+  iterations: 3
   ropeWidth: 0.08
 --- !u!4 &1736264500
 Transform:

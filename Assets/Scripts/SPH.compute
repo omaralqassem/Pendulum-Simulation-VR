@@ -330,16 +330,19 @@ void CSIntegrate(uint3 id : SV_DispatchThreadID) {
 
     p.velocity += acceleration * deltaTime;
     
-    float maxVel = 100.0f; 
+    float maxVel = 500.0f; 
     float velSq = dot(p.velocity, p.velocity);
     if (velSq > maxVel * maxVel) {
         p.velocity *= (maxVel * rsqrt(velSq)); 
     }
     
-    if (startupTimer > 0.0f) {
-        p.velocity *= clamp(1.0f - (12.0f * deltaTime), 0.0f, 1.0f);
+if (startupTimer > 0.0f) {
+        float maxSettleVel = 1.5f; 
+        float vSq = dot(p.velocity, p.velocity);
+        if (vSq > maxSettleVel * maxSettleVel) {
+            p.velocity *= (maxSettleVel * rsqrt(vSq));
+        }
     }
-    
     p.position += p.velocity * deltaTime;
     
     float floorY = boxCenter.y - (boxSize.y / 2.0) + particleRadius;
@@ -411,7 +414,7 @@ void CSIntegrate(uint3 id : SV_DispatchThreadID) {
 
                 if (isHoleOpen && distToHoleSq > 0.000001f) {
                     float2 dirToHoleXZ = -toHole * rsqrt(distToHoleSq);
-                    float funnelForce = 1.5f; 
+                    float funnelForce = 0.15f;
                     localVel.xz += dirToHoleXZ * funnelForce * deltaTime;
                 }
                 
@@ -419,8 +422,8 @@ void CSIntegrate(uint3 id : SV_DispatchThreadID) {
                 hitBoundary = true;
             }
             else {
-                localVel.xz *= 0.7f; 
-                localVel.y = clamp(localVel.y, -1.8f, -0.1f); 
+                localVel.xz *= 0.2f; 
+                localVel.y = clamp(localVel.y, -0.25f, -0.05f); 
                 hitBoundary = true;
             }
         }

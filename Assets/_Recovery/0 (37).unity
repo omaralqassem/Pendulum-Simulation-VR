@@ -960,6 +960,7 @@ GameObject:
   - component: {fileID: 330585545}
   - component: {fileID: 330585544}
   - component: {fileID: 330585547}
+  - component: {fileID: 330585548}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -1085,6 +1086,27 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
+--- !u!114 &330585548
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 330585543}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9319693ac3ddafa46bd1ae45c841fda7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FluidRayMarching
+  raymarching: {fileID: 7200000, guid: a615c8525f1df254cafc2168566745b1, type: 3}
+  cam: {fileID: 330585545}
+  sph: {fileID: 471223924}
+  viewRadius: 0.15
+  blendStrength: 0
+  waterColor: {r: 0, g: 0.17198527, b: 1, a: 0}
+  ambientLight: {r: 0, g: 0, b: 0, a: 0}
+  lightSource: {fileID: 410087040}
+  maxParticlesToCheck: 500000
 --- !u!1001 &359543081
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1319,34 +1341,34 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 56cc445fa9cdef54a9bc8c6c85ddfede, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GPUSPH3D
-  fillAmount: 1
-  bucketTransform: {fileID: 984022701}
+  fillAmount: 0.5
+  bucketTransform: {fileID: 1632913531}
   bucketPhysics: {fileID: 984022702}
   sphCompute: {fileID: 7200000, guid: 3e5e0c30a8986fd469a02b9c6b94541c, type: 3}
   renderMaterial: {fileID: 2100000, guid: 936d681080bf1a245aed340a7029a75e, type: 2}
   particleMesh: {fileID: 0}
-  showMeshParticles: 1
+  showMeshParticles: 0
   boxSize: {x: 42, y: 39.7, z: 37}
-  boundaryDamping: 0.4
+  boundaryDamping: 0.15
   maxParticles: 424288
-  particleRadius: 0.0045
+  particleRadius: 0.017
   gravity: {x: 0, y: -9.81, z: 0}
-  maxParticleLifetime: 20
-  smoothingRadius: 0.009
-  restDensity: 1000
+  maxParticleLifetime: 12
+  smoothingRadius: 0.006
+  restDensity: 1300
   gasConstant: 20
-  viscosity: 2
-  particleMass: 0.0000306
-  surfaceTension: 20
+  viscosity: 1
+  particleMass: 0.0000267
+  surfaceTension: 1.5
   targetCanvas: {fileID: 1267631995}
   fluidPaintColor: {r: 0, g: 0, b: 1, a: 1}
-  fluidPaintRadius: 0.015
-  hardness: 0.6
-  strength: 0.6
+  fluidPaintRadius: 0.008
+  hardness: 0.5
+  strength: 0.5
   maxPaintsPerFrame: 64
   isInitialized: 0
-  simulationSubSteps: 3
-  sphTimeStep: 0.002
+  simulationSubSteps: 5
+  sphTimeStep: 0.0023
   fluidSettleTime: 1.5
   currentSettleTime: 0
 --- !u!4 &471223925
@@ -4230,18 +4252,18 @@ MonoBehaviour:
   ropeController: {fileID: 1736264499}
   fluidSystem: {fileID: 471223924}
   dryBucketMass: 2
-  bucketHeight: 4
+  bucketHeight: 5
   bucketRadius: 0.15
   twistSpringStiffness: 0.1
   spinDamping: 0.2
   hasHole: 1
-  currentPaintMass: 15
-  paintDensity: 1000
-  holeRadius: 0.03
+  currentPaintMass: 13
+  paintDensity: 1300
+  holeRadius: 0.015
   dischargeCoefficient: 0.35
   paintDensityFactor: 0.002
-  holeLocalOffset: {x: 0, y: -4, z: 0}
-  paintExitDirectionLocal: {x: 0, y: -1, z: 0}
+  holeLocalOffset: {x: 0, y: 0, z: 0}
+  paintExitDirectionLocal: {x: 0, y: 0, z: 0}
   stabilizationDuration: 1.5
 --- !u!120 &984022703
 LineRenderer:
@@ -4367,7 +4389,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BucketInteractionCustom
   useAutoStart: 1
   startingOffset: {x: -5, y: 0, z: 0}
-  initialPushVelocity: {x: -5, y: 0, z: 6}
+  initialPushVelocity: {x: -2, y: 0, z: 6}
   grabRadius: 1
   pushForce: 700
   handDamping: 70
@@ -4991,12 +5013,12 @@ MonoBehaviour:
   whatTheRopeIsConnectedTo: {fileID: 1828742862}
   whatIsHangingFromTheRope: {fileID: 984022701}
   ropeSectionLength: 1
-  kRope: 3500
-  dRope: 0.9
+  kRope: 4500
+  dRope: 0.04
   aRope: 0.002
   mRopeSection: 0.8
   numberSection: 35
-  iterations: 15
+  iterations: 3
   ropeWidth: 0.08
 --- !u!4 &1736264500
 Transform:

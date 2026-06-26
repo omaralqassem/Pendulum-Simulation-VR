@@ -6,9 +6,9 @@ public class BucketPhysics : MonoBehaviour
     public SPHSystem fluidSystem;
 
     [Header("Bucket Properties")]
-    public float dryBucketMass = 2.0f;       
-    public float bucketHeight =5.0f;        
-    public float bucketRadius = 4.0f;       
+    public float dryBucketMass = 4.0f;       
+    public float bucketHeight =4.0f;        
+    public float bucketRadius = 0.15f;       
     
     [Header("Rope Twist Settings (Spinning)")]
     [Tooltip("How strongly the rope resists twisting. Higher values make it untwist faster.")]
@@ -18,25 +18,21 @@ public class BucketPhysics : MonoBehaviour
 
     [Header("Paint Properties")]    
     public bool hasHole = true;
-    public float currentPaintMass = 13.0f;   
+    public float currentPaintMass = 25.0f;   
     public float paintDensity = 1300f;      
-    public float holeRadius = 0.015f; 
+    public float holeRadius = 0.01f; 
 
     public float dischargeCoefficient = 0.35f; 
-    public float paintDensityFactor = 0.001f;
+    public float paintDensityFactor = 0.002f;
 
     [Header("Hole Offsets")]
-    public Vector3 holeLocalOffset = new Vector3(0.15f, -0.4f, 0f); 
-    public Vector3 paintExitDirectionLocal = new Vector3(0f, -1f, 0.5f); 
+    public Vector3 holeLocalOffset = new Vector3(0f, -4f, 0f); 
+    public Vector3 paintExitDirectionLocal = new Vector3(0f, -1f,0f); 
     [Header("Stabilization")]
     public float stabilizationDuration = 1.5f;
 
 
-    public void ResetState()
-    {
-        massInitialized = false;
-        hasReceivedFirstCount = false;
-    }
+   
    private float physicsMassPerParticle = 0f;
     private bool massInitialized = false;
     private bool hasReceivedFirstCount = false; 
@@ -55,7 +51,11 @@ public class BucketPhysics : MonoBehaviour
     {
         return dryBucketMass + currentPaintMass;
     }
-
+     public void ResetState()
+    {
+        massInitialized = false;
+        hasReceivedFirstCount = false;
+    }
 
     public void InitializeMass(int initialParticleCount)
     {

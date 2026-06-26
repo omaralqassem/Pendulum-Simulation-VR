@@ -17,7 +17,7 @@ public class SPHSystem : MonoBehaviour
 
     [Header("Initial Fill")]
     [Range(0f, 1f)]
-    public float fillAmount = 0.7f;
+    public float fillAmount = 1.0f;
 
     [Header("Bucket Integration")]
     public Transform bucketTransform;
@@ -30,30 +30,30 @@ public class SPHSystem : MonoBehaviour
     [SerializeField] private bool showMeshParticles = true;
 
     [Header("Simulation Space")]
-    [SerializeField] public Vector3 boxSize = new Vector3(20f, 40f, 20f);
-    [SerializeField] private float boundaryDamping = 0.15f;
+    [SerializeField] public Vector3 boxSize = new Vector3(42f, 39.7f, 37f);
+    [SerializeField] private float boundaryDamping =0.4f;
 
     [Header("Fluid Properties")]
-    [SerializeField] private int maxParticles = 524288; 
-    [SerializeField] private float particleRadius = 0.00025f;
+    [SerializeField] private int maxParticles = 424288; 
+    [SerializeField] private float particleRadius = 0.015f;
     [SerializeField] private Vector3 gravity = new Vector3(0f, -9.81f, 0f);
-    [SerializeField] private float maxParticleLifetime = 12f;
+    [SerializeField] private float maxParticleLifetime = 20f;
 
     [Header("SPH Parameters")]
-    [SerializeField] public float smoothingRadius = 0.018f;
+    [SerializeField] public float smoothingRadius = 0.005f;
     [SerializeField] private float restDensity = 1300.0f;
-    [SerializeField] private float gasConstant = 50.0f;
-    [SerializeField] private float viscosity = 0.1f;
-    [SerializeField] private float particleMass = 0.00025f;
-    [SerializeField] private float surfaceTension = 1500.0f;
+    [SerializeField] private float gasConstant = 10.0f;
+    [SerializeField] private float viscosity = 1f;
+    [SerializeField] private float particleMass = 3.06e-05f;
+    [SerializeField] private float surfaceTension = 40f;
 
     [Header("Painting Integration")]
     public Paintable targetCanvas;
     public Color fluidPaintColor = Color.blue;
-    public float fluidPaintRadius = 0.5f;
+    public float fluidPaintRadius = 0.008f;
     [SerializeField] private float hardness = 0.5f;
     [SerializeField] private float strength = 0.5f;
-    [Range(1, 64)] public int maxPaintsPerFrame = 10;
+    [Range(1, 64)] public int maxPaintsPerFrame = 64;
 
     public ComputeBuffer gridKeyValuesBuffer;
     public ComputeBuffer gridCellStartsBuffer;
@@ -106,13 +106,13 @@ public class SPHSystem : MonoBehaviour
     private int sortedSize; 
     [Header("Simulation Speed & Substepping")]
 [Tooltip("How many simulation ticks to run per frame. Higher values bring the fluid up to real-time speed.")]
-[Range(1, 10)] public int simulationSubSteps = 5;
+[Range(1, 10)] public int simulationSubSteps = 3;
 [Tooltip("The time-step size for each sub-step. Keep this small (e.g., 0.0015 - 0.0025) to prevent the SPH solver from exploding.")]
 public float sphTimeStep = 0.002f;
 [Header("Simulation Settle")]
     public float fluidSettleTime = 1.5f;
     [HideInInspector] public float currentSettleTime;
-    
+    private float holeOpenFactor = 0f;
 
     void Start()
     {currentSettleTime = fluidSettleTime;
@@ -209,8 +209,9 @@ public float sphTimeStep = 0.002f;
     if (bucketTransform == null || bucketPhysics == null)
         return;
 
-    float spacing = Mathf.Pow(particleMass / restDensity, 1.0f / 3.0f) * 1.10f;
-    float bucketRadius = bucketPhysics.bucketRadius - particleRadius;
+    float spacing = particleRadius * 2.0f; 
+
+    float bucketR = bucketPhysics.bucketRadius - particleRadius;
     float bucketBottom = -bucketPhysics.bucketHeight + particleRadius;
     float bucketTop = bucketPhysics.bucketHeight - particleRadius;
 
@@ -219,18 +220,26 @@ public float sphTimeStep = 0.002f;
     NativeArray<SPHParticle> initialData = new NativeArray<SPHParticle>(maxParticles, Allocator.Temp);
     int particleIndex = 0;
 
+    int countX = Mathf.FloorToInt((bucketR * 2f) / spacing);
+    int countZ = Mathf.FloorToInt((bucketR * 2f) / spacing);
+    float startX = -(countX * spacing) / 1.5f + (spacing / 1.5f);
+    float startZ = -(countZ * spacing) / 1.5f + (spacing / 1.5f);
+
     for (float y = bucketBottom; y < fillTop; y += spacing)
     {
-        for (float z = -bucketRadius; z < bucketRadius; z += spacing)
+        for (int zi = 0; zi < countZ; zi++)
         {
-            for (float x = -bucketRadius; x < bucketRadius; x += spacing)
+            for (int xi = 0; xi < countX; xi++)
             {
                 if (particleIndex >= maxParticles)
                     goto FillFinished;
 
+                float x = startX + xi * spacing;
+                float z = startZ + zi * spacing;
+
                 Vector2 radialPos = new Vector2(x, z);
 
-                if (radialPos.magnitude > bucketRadius)
+                if (radialPos.magnitude > bucketR)
                     continue;
 
                 Vector3 jitter = new Vector3(
@@ -286,52 +295,23 @@ FillFinished:
     initialData.Dispose();
     isInitialized = true;
 }
-    public void EmitParticles(Vector3 origin, Vector3 velocity, int count)
-    {
-        if (count <= 0) return;
-        count = Mathf.Min(count, emissionBuffer.Length);
+//updates
 
-        for (int i = 0; i < count; i++)
-        {
-            emissionBuffer[i] = new SPHParticle
-            {
-                position = origin + Random.insideUnitSphere * particleRadius * 0.5f,
-                velocity = velocity + Random.insideUnitSphere * 0.05f,
-                force = Vector3.zero, density = restDensity, pressure = 0f, lifetime = maxParticleLifetime
-            };
-        }
+   private int warmupFrames = 40;
 
-        int spaceLeft = maxParticles - emitIndex;
-        if (count <= spaceLeft)
-        {
-            particleBuffer.SetData(emissionBuffer, 0, emitIndex, count);
-            emitIndex = (emitIndex + count) % maxParticles;
-        }
-        else
-        {
-            particleBuffer.SetData(emissionBuffer, 0, emitIndex, spaceLeft);
-            int remaining = count - spaceLeft;
-            particleBuffer.SetData(emissionBuffer, spaceLeft, 0, remaining);
-            emitIndex = remaining;
-        }
-    }
-
-    private int warmupFrames = 40;
-
-void Update()
+    void Update()
 {
-     if (currentSettleTime > 0f) {
-            currentSettleTime -= Time.deltaTime;
-        }
+    if (currentSettleTime > 0f) {
+        currentSettleTime -= Time.deltaTime;
+        holeOpenFactor = 0f; 
+    } else {
+        holeOpenFactor = Mathf.Min(1.0f, holeOpenFactor + Time.deltaTime * 1.0f);
+    }
 
     if (bucketTransform != null && Time.deltaTime > 0f)
     {
         Vector3 currentVel = (bucketTransform.position - lastBucketPosition) / Time.deltaTime;
-        
-        if (currentVel.magnitude > 100f) 
-        {
-            currentVel = Vector3.zero;
-        }
+        if (currentVel.magnitude > 100f) currentVel = Vector3.zero;
         
         bucketVelocity = currentVel;
         lastBucketPosition = bucketTransform.position;
@@ -416,7 +396,7 @@ private void RunSimulation(float dt, bool retrieveDataFromGPU)
         sphCompute.SetMatrix("bucketLocalToWorld", bucketTransform.localToWorldMatrix);
         sphCompute.SetFloat("bucketRadiusCS", bucketPhysics.bucketRadius);
         sphCompute.SetFloat("bucketHeightCS", bucketPhysics.bucketHeight); 
-        sphCompute.SetFloat("holeRadiusCS", bucketPhysics.holeRadius);
+        sphCompute.SetFloat("holeRadiusCS", bucketPhysics.holeRadius * holeOpenFactor);
         sphCompute.SetVector("holeLocalPos", bucketPhysics.holeLocalOffset);
     }
 
