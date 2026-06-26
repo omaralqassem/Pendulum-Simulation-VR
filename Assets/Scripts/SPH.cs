@@ -17,7 +17,7 @@ public class SPHSystem : MonoBehaviour
 
     [Header("Initial Fill")]
     [Range(0f, 1f)]
-    public float fillAmount = 1.0f;
+    public float fillAmount = 0.8f;
 
     [Header("Bucket Integration")]
     public Transform bucketTransform;
@@ -35,17 +35,17 @@ public class SPHSystem : MonoBehaviour
 
     [Header("Fluid Properties")]
     [SerializeField] private int maxParticles = 424288; 
-    [SerializeField] private float particleRadius = 0.015f;
+    [SerializeField] private float particleRadius = 0.0045f;
     [SerializeField] private Vector3 gravity = new Vector3(0f, -9.81f, 0f);
     [SerializeField] private float maxParticleLifetime = 20f;
 
     [Header("SPH Parameters")]
-    [SerializeField] public float smoothingRadius = 0.005f;
-    [SerializeField] private float restDensity = 1300.0f;
+    [SerializeField] public float smoothingRadius = 0.009f;
+    [SerializeField] private float restDensity = 1000.0f;
     [SerializeField] private float gasConstant = 10.0f;
-    [SerializeField] private float viscosity = 1f;
+    [SerializeField] private float viscosity = 1.5f;
     [SerializeField] private float particleMass = 3.06e-05f;
-    [SerializeField] private float surfaceTension = 40f;
+    [SerializeField] private float surfaceTension = 20f;
 
     [Header("Painting Integration")]
     public Paintable targetCanvas;
@@ -371,7 +371,7 @@ private void RunSimulation(float dt, bool retrieveDataFromGPU)
     if (currentSettleTime > 0f)
     {
         float settleProgress = 1.0f - (currentSettleTime / fluidSettleTime);
-        currentGasConstant = Mathf.Lerp(gasConstant * 0.05f, gasConstant, settleProgress);
+        currentGasConstant = Mathf.Lerp(gasConstant * 0.02f, gasConstant, settleProgress);
     }
     sphCompute.SetFloat("gasConstant", currentGasConstant);
     sphCompute.SetFloat("viscosity", viscosity);

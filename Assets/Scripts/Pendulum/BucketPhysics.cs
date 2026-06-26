@@ -6,7 +6,7 @@ public class BucketPhysics : MonoBehaviour
     public SPHSystem fluidSystem;
 
     [Header("Bucket Properties")]
-    public float dryBucketMass = 4.0f;       
+    public float dryBucketMass = 2.0f;       
     public float bucketHeight =4.0f;        
     public float bucketRadius = 0.15f;       
     
@@ -19,8 +19,8 @@ public class BucketPhysics : MonoBehaviour
     [Header("Paint Properties")]    
     public bool hasHole = true;
     public float currentPaintMass = 25.0f;   
-    public float paintDensity = 1300f;      
-    public float holeRadius = 0.01f; 
+    public float paintDensity = 1000f;      
+    public float holeRadius = 0.015f; 
 
     public float dischargeCoefficient = 0.35f; 
     public float paintDensityFactor = 0.002f;

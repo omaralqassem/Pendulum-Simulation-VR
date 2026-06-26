@@ -421,11 +421,13 @@ if (startupTimer > 0.0f) {
                 localVel.y -= 0.1f * deltaTime;
                 hitBoundary = true;
             }
-            else {
-                localVel.xz *= 0.2f; 
-                localVel.y = clamp(localVel.y, -0.25f, -0.05f); 
-                hitBoundary = true;
-            }
+else {
+    localVel.xz *= 0.02f; 
+    
+    localVel.y = clamp(localVel.y, -1.5f, -0.1f); 
+    
+    hitBoundary = true;
+}
         }
 
         if (hitBoundary) {
