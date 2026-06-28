@@ -960,7 +960,6 @@ GameObject:
   - component: {fileID: 330585545}
   - component: {fileID: 330585544}
   - component: {fileID: 330585547}
-  - component: {fileID: 330585549}
   - component: {fileID: 330585548}
   m_Layer: 0
   m_Name: Main Camera
@@ -1096,46 +1095,17 @@ MonoBehaviour:
   m_GameObject: {fileID: 330585543}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 064364ba693d1ea4fad6b6db3a326150, type: 3}
+  m_Script: {fileID: 11500000, guid: 59287e76440803e4bbb29d1c93333ba8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SPHFluidRenderer
   sphSystem: {fileID: 471223924}
-  bilateralCompute: {fileID: 7200000, guid: e58fb233b6563d24cb3741a047699004, type: 3}
-  fluidParticleShader: {fileID: 4800000, guid: 72edc7ba03b13e545a51ab03eb833747, type: 3}
-  compositeShader: {fileID: 4800000, guid: 2f6080acacb33334d92c20f380700ce4, type: 3}
-  particleRenderScale: 15
-  paintBaseColor: {r: 0, g: 0, b: 1, a: 1}
-  paintDeepColor: {r: 0, g: 0, b: 1, a: 1}
-  paintDensity: 10
-  roughness: 0.12
-  metallic: 0.1
-  refractiveIndex: 1.5
-  blurRadius: 4
-  depthThreshold: 0.03
---- !u!114 &330585549
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 330585543}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e8eb7d522f2684f4b8ba35e8507e2b5a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CameraOrbit
-  target: {fileID: 984022701}
-  targetOffset: {x: 0, y: 0, z: 0}
-  distance: 15
-  minDistance: 2
-  maxDistance: 40
-  zoomSpeed: 5
-  xSpeed: 120
-  ySpeed: 120
-  yMinLimit: -20
-  yMaxLimit: 80
-  autoOrbit: 1
-  autoOrbitSpeed: 5
+  particleMesh: {fileID: 4711208715938537054, guid: c9457deba3ef9a24c8ad8383ba6e4093, type: 3}
+  fluidSurfaceShader: {fileID: 4800000, guid: 88082a17a454b1047839e5b233228ed1, type: 3}
+  fluidCompositeShader: {fileID: 4800000, guid: f0dc17640489c4e409ff1d6c3cb22526, type: 3}
+  paintColor: {r: 0, g: 0.4, b: 0.8, a: 1}
+  glossiness: 0.85
+  refraction: 0.0192
+  debugMode: 0
 --- !u!1001 &359543081
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1379,10 +1349,10 @@ MonoBehaviour:
   showMeshParticles: 0
   boxSize: {x: 42, y: 39.7, z: 37}
   boundaryDamping: 0.4
-  maxParticles: 424288
+  maxParticles: 324288
   particleRadius: 0.0015
   gravity: {x: 0, y: -9.81, z: 0}
-  maxParticleLifetime: 12
+  maxParticleLifetime: 20
   smoothingRadius: 0.009
   restDensity: 1000
   gasConstant: 150

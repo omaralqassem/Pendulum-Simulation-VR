@@ -1,0 +1,64 @@
+#pragma kernel CSBilateralFilter
+
+Texture2D<float> InputDepth;
+RWTexture2D<float> OutputDepth;
+
+int Width;
+int Height;
+int BlurRadius;
+float DepthThreshold;
+
+[numthreads(16, 16, 1)]
+void CSBilateralFilter(uint3 id : SV_DispatchThreadID)
+{
+    if ((int)id.x >= Width || (int)id.y >= Height)
+        return;
+
+    float centerDepth = InputDepth[id.xy];
+    
+    // Check against far plane clear value
+    if (centerDepth > 9999.0f)
+    {
+        OutputDepth[id.xy] = centerDepth;
+        return;
+    }
+
+    float sum = 0.0f;
+    float wSum = 0.0f;
+
+    for (int y = -BlurRadius; y <= BlurRadius; ++y)
+    {
+        for (int x = -BlurRadius; x <= BlurRadius; ++x)
+        {
+            int2 offsetCoord = int2(id.x + x, id.y + y);
+            
+            offsetCoord.x = clamp(offsetCoord.x, 0, Width - 1);
+            offsetCoord.y = clamp(offsetCoord.y, 0, Height - 1);
+
+            float sampleDepth = InputDepth[offsetCoord];
+
+            if (sampleDepth > 9999.0f)
+                continue;
+
+            float spatialDist = length(float2(x, y));
+            float depthDiff = abs(sampleDepth - centerDepth);
+
+            // Spatial and range kernels
+            float gS = exp(-(spatialDist * spatialDist) / (2.0f * (BlurRadius * BlurRadius)));
+            float gR = exp(-(depthDiff * depthDiff) / (2.0f * (DepthThreshold * DepthThreshold)));
+            float weight = gS * gR;
+
+            sum += sampleDepth * weight;
+            wSum += weight;
+        }
+    }
+
+    if (wSum > 0.0f)
+    {
+        OutputDepth[id.xy] = sum / wSum;
+    }
+    else
+    {
+        OutputDepth[id.xy] = centerDepth;
+    }
+}

@@ -50,6 +50,7 @@ float poly6;
 float spikyGrad;
 float viscLap;
 float cellSize;
+float invCellSize;
 
 float4x4 bucketWorldToLocal;
 float4x4 bucketLocalToWorld;
@@ -74,7 +75,7 @@ float dryFriction;
 float dryingViscosityScale; 
 
 uint GetHash(float3 pos) {
-    int3 cell = (int3)((pos + float3(10000.0f, 10000.0f, 10000.0f)) / cellSize);
+    int3 cell = (int3)((pos + 10000.0f) * invCellSize);
     uint3 wrapped = (uint3)(cell & (HASH_DIM - 1));
     return wrapped.x + (wrapped.y * HASH_DIM) + (wrapped.z * HASH_DIM * HASH_DIM);
 }
@@ -201,28 +202,33 @@ void CSBuildGridOffsets(uint3 id : SV_DispatchThreadID) {
 [numthreads(256, 1, 1)]
 void CSDensityPressure(uint3 id : SV_DispatchThreadID) {
     if (id.x >= numParticles || ParticlesSorted[id.x].lifetime <= 0) return;
+    
     float3 posI = ParticlesSorted[id.x].position;
     float densitySum = 0.0;
     float h2 = smoothingRadius * smoothingRadius;
     float massPoly6 = particleMass * poly6;
-    int3 cellIndex = (int3)((posI + float3(10000.0f, 10000.0f, 10000.0f)) / cellSize);
+    
+    int3 cellIndex = (int3)((posI + 10000.0f) * invCellSize);
 
+    [unroll]
     for (int z = -1; z <= 1; z++) {
         uint zWrap = ((uint)(cellIndex.z + z) & (HASH_DIM - 1)) * (HASH_DIM * HASH_DIM);
         
+        [unroll]
         for (int y = -1; y <= 1; y++) {
             uint yWrap = ((uint)(cellIndex.y + y) & (HASH_DIM - 1)) * HASH_DIM;
             
+            [unroll]
             for (int x = -1; x <= 1; x++) {
                 uint hash = ((uint)(cellIndex.x + x) & (HASH_DIM - 1)) + yWrap + zWrap;
                 
                 uint start = GridCellStarts[hash];
                 if (start != 0xFFFFFFFF) {
                     uint end = GridCellEnds[hash];
+                    
                     for (uint k = start; k < end; k++) {
-                        float3 neighborPos = ParticlesSorted[k].position;
-                        
-                        float3 diff = posI - neighborPos;
+                        Particle neighbor = ParticlesSorted[k];
+                        float3 diff = posI - neighbor.position;
                         float r2 = dot(diff, diff);
 
                         if (r2 < h2) {
@@ -243,66 +249,76 @@ void CSDensityPressure(uint3 id : SV_DispatchThreadID) {
 void CSForces(uint3 id : SV_DispatchThreadID) {
     if (id.x >= numParticles || ParticlesSorted[id.x].lifetime <= 0) return;
 
-    float3 posI = ParticlesSorted[id.x].position;
-    float3 velI = ParticlesSorted[id.x].velocity;
-    float localDryI = ParticlesSorted[id.x].dryState;
+    Particle self = ParticlesSorted[id.x];
+    float3 posI = self.position;
+    float3 velI = self.velocity;
+    float localDryI = self.dryState;
 
     float3 localPos = mul(bucketWorldToLocal, float4(posI, 1.0)).xyz;
     if (localPos.y < -bucketHeightCS - 0.1f) {
         ParticlesSorted[id.x].force = float3(0,0,0); 
         return;
     }
-    float presI = ParticlesSorted[id.x].pressure;
+    
+    float presI = self.pressure;
     float h = smoothingRadius;
     float h2 = h * h;
     float3 pressureForce = float3(0, 0, 0);
     float3 viscosityForce = float3(0, 0, 0);
     float3 cohesionForce = float3(0, 0, 0); 
+    
     float massSpikyGradHalf = particleMass * spikyGrad * 0.5f;
     float massViscLap = viscosity * particleMass * viscLap;
     float massCohesion = surfaceTension * particleMass;
+    float invH = 1.0f / h;
 
-    int3 cellIndex = (int3)((posI + float3(10000.0f, 10000.0f, 10000.0f)) / cellSize);
+    int3 cellIndex = (int3)((posI + 10000.0f) * invCellSize);
+    
+    [unroll]
     for (int z = -1; z <= 1; z++) {
         uint zWrap = ((uint)(cellIndex.z + z) & (HASH_DIM - 1)) * (HASH_DIM * HASH_DIM);
         
+        [unroll]
         for (int y = -1; y <= 1; y++) {
             uint yWrap = ((uint)(cellIndex.y + y) & (HASH_DIM - 1)) * HASH_DIM;
             
+            [unroll]
             for (int x = -1; x <= 1; x++) {
                 uint hash = ((uint)(cellIndex.x + x) & (HASH_DIM - 1)) + yWrap + zWrap;
                 
                 uint start = GridCellStarts[hash];
                 if (start != 0xFFFFFFFF) {
                     uint end = GridCellEnds[hash];
+                    
                     for (uint k = start; k < end; k++) {
                         if (id.x == k) continue; 
                         
-                        float3 nPos = ParticlesSorted[k].position;
-                        
-                        float3 diff = posI - nPos;
+                        Particle neighbor = ParticlesSorted[k];
+                        float3 diff = posI - neighbor.position;
                         float r2 = dot(diff, diff);
 
                         if (r2 < h2 && r2 > 0.000001f) {
-                            float nDensClamped = max(ParticlesSorted[k].density, restDensity * 0.1f);
-                            float nPress = ParticlesSorted[k].pressure;
-                            float3 nVel = ParticlesSorted[k].velocity;
-                            float localDryK = ParticlesSorted[k].dryState;
+                            float nDensClamped = max(neighbor.density, restDensity * 0.1f);
+                            float nPress = neighbor.pressure;
+                            float3 nVel = neighbor.velocity;
+                            float localDryK = neighbor.dryState;
+
+                            float invNDens = 1.0f / nDensClamped;
 
                             float r_inv = rsqrt(r2);
                             float r = r2 * r_inv;
                             float3 direction = diff * r_inv;
                             float h_minus_r = h - r;
-                            float pForce = -(presI + nPress) / nDensClamped;
+                            
+                            float pForce = -(presI + nPress) * invNDens;
                             float forceMag = clamp(pForce * massSpikyGradHalf * (h_minus_r * h_minus_r), -10000.0f, 10000.0f); 
                             pressureForce += direction * forceMag;
 
                             float3 vDiff = nVel - velI;
-                            
                             float dryViscosityMultiplier = 1.0f + (localDryI + localDryK) * dryingViscosityScale;
-                            viscosityForce += vDiff * (massViscLap * h_minus_r / nDensClamped) * dryViscosityMultiplier;
+                            viscosityForce += vDiff * (massViscLap * h_minus_r * invNDens) * dryViscosityMultiplier;
 
-                            cohesionForce -= direction * (massCohesion * (h_minus_r / h) * h_minus_r);
+                            cohesionForce -= direction * (massCohesion * (h_minus_r * invH) * h_minus_r);
                         }
                     }
                 }

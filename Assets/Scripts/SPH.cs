@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 using Unity.Collections;
 using System.Collections.Generic;
 
@@ -47,13 +48,13 @@ public class SPHSystem : MonoBehaviour
     [SerializeField] private float surfaceTension = 20f;
 
     [Header("Drying & Stickiness")]
-    [Tooltip("How fast the paint dries. (e.g., 0.2 means it takes 5 seconds to solidify)")]
+    [Tooltip("How fast the paint dries.")]
     [SerializeField] private float dryingRate = 0.2f;
-    [Tooltip("Drag resistance when the paint is still wet, allowing it to slide/drip down.")]
+    [Tooltip("Drag resistance when wet.")]
     [SerializeField] private float wetFriction = 5.0f;
-    [Tooltip("Drag resistance when the paint is drying, locking it in place.")]
+    [Tooltip("Drag resistance when drying.")]
     [SerializeField] private float dryFriction = 80.0f;
-    [Tooltip("Viscous cohesion multiplier between drying particles. High values create thick fluid piles.")]
+    [Tooltip("Viscous cohesion multiplier between drying particles.")]
     [SerializeField] private float dryingViscosityScale = 30.0f;
 
     [Header("Painting Integration")]
@@ -122,6 +123,8 @@ public class SPHSystem : MonoBehaviour
     public float fluidSettleTime = 1.5f;
     [HideInInspector] public float currentSettleTime;
     private float holeOpenFactor = 0f;
+
+    private bool isReadbackInProgress = false;
 
     void Start()
     {
@@ -327,8 +330,9 @@ public class SPHSystem : MonoBehaviour
         {
             for (int i = 0; i < simulationSubSteps; i++)
             {
+                bool rebuildGrid = (i == 0);
                 bool isLastStep = (i == simulationSubSteps - 1);
-                RunSimulation(sphTimeStep, isLastStep);
+                RunSimulation(sphTimeStep, rebuildGrid, isLastStep);
             }
         }
 
@@ -338,38 +342,59 @@ public class SPHSystem : MonoBehaviour
         }
 
         RenderParticles();
-        ProcessFluidPainting();
+        ProcessFluidPaintingAsync();
     }
 
-    private void ProcessFluidPainting()
+    private void ProcessFluidPaintingAsync()
     {
-        if (targetCanvas == null) return;
+        if (targetCanvas == null || isReadbackInProgress) return;
 
-        paintHitCountBuffer.GetData(paintHitCountArray);
-        int hitCount = (int)paintHitCountArray[0];
+        isReadbackInProgress = true;
 
-        if (hitCount > 0)
+        AsyncGPUReadback.Request(paintHitCountBuffer, (AsyncGPUReadbackRequest countRequest) =>
         {
-            int paintsToProcess = Mathf.Min(hitCount, maxPaintsPerFrame);
-            paintsToProcess = Mathf.Min(paintsToProcess, MAX_PAINT_HITS);
-            
-            paintHitsBuffer.GetData(paintHitsArray, 0, 0, paintsToProcess);
-
-            for (int i = 0; i < paintsToProcess; i++)
+            if (countRequest.hasError)
             {
-                PaintManager.instance.paint(
-                    targetCanvas,
-                    paintHitsArray[i],
-                    Mathf.Max(fluidPaintRadius, 0.5f),
-                    hardness,  
-                    strength, 
-                    fluidPaintColor
-                );
+                isReadbackInProgress = false;
+                return;
             }
-        }
+
+            var countData = countRequest.GetData<uint>();
+            int hitCount = (int)countData[0];
+
+            if (hitCount > 0)
+            {
+                int paintsToProcess = Mathf.Min(hitCount, maxPaintsPerFrame);
+                paintsToProcess = Mathf.Min(paintsToProcess, MAX_PAINT_HITS);
+
+                AsyncGPUReadback.Request(paintHitsBuffer, paintsToProcess * sizeof(float) * 3, 0, (AsyncGPUReadbackRequest hitsRequest) =>
+                {
+                    if (!hitsRequest.hasError)
+                    {
+                        var hitsData = hitsRequest.GetData<Vector3>();
+                        for (int i = 0; i < paintsToProcess; i++)
+                        {
+                            PaintManager.instance.paint(
+                                targetCanvas,
+                                hitsData[i],
+                                Mathf.Max(fluidPaintRadius, 0.5f),
+                                hardness,  
+                                strength, 
+                                fluidPaintColor
+                            );
+                        }
+                    }
+                    isReadbackInProgress = false;
+                });
+            }
+            else
+            {
+                isReadbackInProgress = false;
+            }
+        });
     }
 
-private void RunSimulation(float dt, bool retrieveDataFromGPU)
+    private void RunSimulation(float dt, bool rebuildGrid, bool retrieveDataFromGPU)
     {
         float h = smoothingRadius;
         
@@ -402,6 +427,7 @@ private void RunSimulation(float dt, bool retrieveDataFromGPU)
         sphCompute.SetFloat("dryingViscosityScale", dryingViscosityScale);
 
         sphCompute.SetFloat("cellSize", h);
+        sphCompute.SetFloat("invCellSize", 1.0f / h);
         sphCompute.SetFloat("poly6", 315.0f / (64.0f * Mathf.PI * Mathf.Pow(h, 9)));
         sphCompute.SetFloat("spikyGrad", -45.0f / (Mathf.PI * Mathf.Pow(h, 6)));
         sphCompute.SetFloat("viscLap", 45.0f / (Mathf.PI * Mathf.Pow(h, 6)));
@@ -446,37 +472,40 @@ private void RunSimulation(float dt, bool retrieveDataFromGPU)
         paintHitCountArray[0] = 0;
         paintHitCountBuffer.SetData(paintHitCountArray);
 
-        sphCompute.SetBuffer(clearGridKernel, "GridCellStarts", gridCellStartsBuffer);
-        sphCompute.SetBuffer(clearGridKernel, "GridCellEnds", gridCellEndsBuffer);
-        sphCompute.Dispatch(clearGridKernel, threadGroupsGrid, 1, 1);
-
-        sphCompute.SetBuffer(generateKeyValuesKernel, "Particles", particleBuffer);
-        sphCompute.SetBuffer(generateKeyValuesKernel, "GridKeyValues", gridKeyValuesBuffer);
-        sphCompute.Dispatch(generateKeyValuesKernel, threadGroupsSort256, 1, 1);
-
-        sphCompute.SetBuffer(bitonicSortLocalKernel, "GridKeyValues", gridKeyValuesBuffer);
-        sphCompute.Dispatch(bitonicSortLocalKernel, threadGroupsSort256, 1, 1);
-
-        sphCompute.SetBuffer(bitonicSortGlobalKernel, "GridKeyValues", gridKeyValuesBuffer);
-        for (int stage = 512; stage <= sortedSize; stage <<= 1)
+        if (rebuildGrid)
         {
-            for (int step = stage >> 1; step > 0; step >>= 1)
+            sphCompute.SetBuffer(clearGridKernel, "GridCellStarts", gridCellStartsBuffer);
+            sphCompute.SetBuffer(clearGridKernel, "GridCellEnds", gridCellEndsBuffer);
+            sphCompute.Dispatch(clearGridKernel, threadGroupsGrid, 1, 1);
+
+            sphCompute.SetBuffer(generateKeyValuesKernel, "Particles", particleBuffer);
+            sphCompute.SetBuffer(generateKeyValuesKernel, "GridKeyValues", gridKeyValuesBuffer);
+            sphCompute.Dispatch(generateKeyValuesKernel, threadGroupsSort256, 1, 1);
+
+            sphCompute.SetBuffer(bitonicSortLocalKernel, "GridKeyValues", gridKeyValuesBuffer);
+            sphCompute.Dispatch(bitonicSortLocalKernel, threadGroupsSort256, 1, 1);
+
+            sphCompute.SetBuffer(bitonicSortGlobalKernel, "GridKeyValues", gridKeyValuesBuffer);
+            for (int stage = 512; stage <= sortedSize; stage <<= 1)
             {
-                sphCompute.SetInt("_BlockSize", step);
-                sphCompute.SetInt("_Stage", stage);
-                sphCompute.Dispatch(bitonicSortGlobalKernel, threadGroupsSort256, 1, 1);
+                for (int step = stage >> 1; step > 0; step >>= 1)
+                {
+                    sphCompute.SetInt("_BlockSize", step);
+                    sphCompute.SetInt("_Stage", stage);
+                    sphCompute.Dispatch(bitonicSortGlobalKernel, threadGroupsSort256, 1, 1);
+                }
             }
+
+            sphCompute.SetBuffer(reorderParticlesKernel, "Particles", particleBuffer);
+            sphCompute.SetBuffer(reorderParticlesKernel, "ParticlesSorted", particlesSortedBuffer);
+            sphCompute.SetBuffer(reorderParticlesKernel, "GridKeyValues", gridKeyValuesBuffer);
+            sphCompute.Dispatch(reorderParticlesKernel, threadGroupsSort256, 1, 1);
+
+            sphCompute.SetBuffer(buildGridOffsetsKernel, "GridKeyValues", gridKeyValuesBuffer);
+            sphCompute.SetBuffer(buildGridOffsetsKernel, "GridCellStarts", gridCellStartsBuffer);
+            sphCompute.SetBuffer(buildGridOffsetsKernel, "GridCellEnds", gridCellEndsBuffer);
+            sphCompute.Dispatch(buildGridOffsetsKernel, threadGroupsSort256, 1, 1);
         }
-
-        sphCompute.SetBuffer(reorderParticlesKernel, "Particles", particleBuffer);
-        sphCompute.SetBuffer(reorderParticlesKernel, "ParticlesSorted", particlesSortedBuffer);
-        sphCompute.SetBuffer(reorderParticlesKernel, "GridKeyValues", gridKeyValuesBuffer);
-        sphCompute.Dispatch(reorderParticlesKernel, threadGroupsSort256, 1, 1);
-
-        sphCompute.SetBuffer(buildGridOffsetsKernel, "GridKeyValues", gridKeyValuesBuffer);
-        sphCompute.SetBuffer(buildGridOffsetsKernel, "GridCellStarts", gridCellStartsBuffer);
-        sphCompute.SetBuffer(buildGridOffsetsKernel, "GridCellEnds", gridCellEndsBuffer);
-        sphCompute.Dispatch(buildGridOffsetsKernel, threadGroupsSort256, 1, 1);
 
         sphCompute.SetBuffer(densityKernel, "ParticlesSorted", particlesSortedBuffer);
         sphCompute.SetBuffer(densityKernel, "GridCellStarts", gridCellStartsBuffer);
