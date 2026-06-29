@@ -63,7 +63,10 @@ public class SPHSystem : MonoBehaviour
     public float fluidPaintRadius = 0.008f;
     [SerializeField] private float hardness = 0.5f;
     [SerializeField] private float strength = 0.5f;
-    [Range(1, 256)] public int maxPaintsPerFrame = 64; 
+    [Range(1, 256)] public int maxPaintsPerFrame = 64;
+    [Header("Visual")]
+    public Color particleColor = new Color(0.2f, 0.4f, 1f, 1f);
+
 
     public ComputeBuffer gridKeyValuesBuffer;
     public ComputeBuffer gridCellStartsBuffer;
@@ -402,6 +405,7 @@ public class SPHSystem : MonoBehaviour
         sphCompute.SetInt("sortedSize", sortedSize);
         sphCompute.SetFloat("smoothingRadius", h);
         sphCompute.SetFloat("restDensity", restDensity);
+        sphCompute.SetFloat("restDensity", restDensity);
         
         float currentGasConstant = gasConstant;
         if (currentSettleTime > 0f)
@@ -543,6 +547,7 @@ public class SPHSystem : MonoBehaviour
         if (!showMeshParticles) return;
 
         renderMaterial.SetFloat("_Scale", particleRadius * 2.0f);
+        renderMaterial.SetColor("_Color", particleColor);
         Graphics.DrawMeshInstancedIndirect(particleMesh, 0, renderMaterial, new Bounds(transform.position, boxSize * 2f), argsBuffer);
     }
 
@@ -632,4 +637,20 @@ public class SPHSystem : MonoBehaviour
 
         return mesh;
     }
+
+
+    public void RefillBucket(Color? newColor = null)
+    {
+        if (newColor.HasValue)
+        {
+            fluidPaintColor = newColor.Value;
+            particleColor = newColor.Value;
+        }
+
+        currentSettleTime = fluidSettleTime;
+        holeOpenFactor = 0f;
+
+        PrefillBucket();
+    }
+
 }

@@ -1376,10 +1376,10 @@ MonoBehaviour:
   sphCompute: {fileID: 7200000, guid: 3e5e0c30a8986fd469a02b9c6b94541c, type: 3}
   renderMaterial: {fileID: 2100000, guid: 936d681080bf1a245aed340a7029a75e, type: 2}
   particleMesh: {fileID: 0}
-  showMeshParticles: 1
-  boxSize: {x: 61, y: 39.7, z: 60}
+  showMeshParticles: 0
+  boxSize: {x: 42, y: 39.7, z: 37}
   boundaryDamping: 0.4
-  maxParticles: 324288
+  maxParticles: 424288
   particleRadius: 0.0015
   gravity: {x: 0, y: -9.81, z: 0}
   maxParticleLifetime: 12
@@ -1396,10 +1396,9 @@ MonoBehaviour:
   targetCanvas: {fileID: 1267631995}
   fluidPaintColor: {r: 0, g: 0, b: 1, a: 1}
   fluidPaintRadius: 0.0015
-  hardness: 1
-  strength: 0.08
+  hardness: 0.05
+  strength: 0.05
   maxPaintsPerFrame: 256
-  particleColor: {r: 0.21568628, g: 0.21568628, b: 0.21568628, a: 1}
   isInitialized: 0
   simulationSubSteps: 3
   sphTimeStep: 0.002
@@ -1415,51 +1414,6 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 22, z: 0}
-  m_LocalScale: {x: 0, y: 0, z: 0}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &543632244
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 543632246}
-  - component: {fileID: 543632245}
-  m_Layer: 0
-  m_Name: colorepaneUI
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &543632245
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 543632244}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: eafe345beb9e85a4f86df77d25fc96e1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BucketColorPicker
-  sphSystem: {fileID: 471223924}
---- !u!4 &543632246
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 543632244}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -8.3961, y: 25.5, z: 18.9}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4330,8 +4284,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BucketPhysics
   ropeController: {fileID: 1736264499}
   fluidSystem: {fileID: 471223924}
-  dryBucketMass: 1
-  bucketHeight: 5
+  dryBucketMass: 2
+  bucketHeight: 4
   bucketRadius: 0.03
   twistSpringStiffness: 0.1
   spinDamping: 0.2
@@ -4470,7 +4424,7 @@ MonoBehaviour:
   startingOffset: {x: -5, y: 0, z: 0}
   initialPushVelocity: {x: -2, y: 0, z: 6}
   grabRadius: 1
-  pushForce: 900
+  pushForce: 700
   handDamping: 70
   accountForBucketMass: 1
 --- !u!4 &1115624919 stripped
@@ -4635,7 +4589,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0.1643, y: 7.6, z: 2}
-  m_LocalScale: {x: 6, y: 3, z: 6}
+  m_LocalScale: {x: 4, y: 2, z: 4}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -5092,13 +5046,13 @@ MonoBehaviour:
   whatTheRopeIsConnectedTo: {fileID: 1828742862}
   whatIsHangingFromTheRope: {fileID: 984022701}
   ropeSectionLength: 1
-  kRope: 6000
-  dRope: 0.002
+  kRope: 3500
+  dRope: 0.9
   aRope: 0.002
-  mRopeSection: 1.7
+  mRopeSection: 0.8
   numberSection: 35
   iterations: 15
-  ropeWidth: 0.1
+  ropeWidth: 0.08
 --- !u!4 &1736264500
 Transform:
   m_ObjectHideFlags: 0
@@ -6128,4 +6082,3 @@ SceneRoots:
   - {fileID: 471223925}
   - {fileID: 1170934080}
   - {fileID: 1267631994}
-  - {fileID: 543632246}
