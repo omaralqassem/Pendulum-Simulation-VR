@@ -1,10 +1,12 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 
-public class PaintManager : Singleton<PaintManager>{
+public class PaintManager : Singleton<PaintManager>
+{
 
     public Shader texturePaint;
     public Shader extendIslands;
+    public Shader wetnessPaint;
 
     int prepareUVID = Shader.PropertyToID("_PrepareUV");
     int positionID = Shader.PropertyToID("_PainterPosition");
@@ -19,51 +21,59 @@ public class PaintManager : Singleton<PaintManager>{
 
     Material paintMaterial;
     Material extendMaterial;
+    Material wetnessMaterial;
 
     CommandBuffer command;
 
-    public override void Awake(){
+    public override void Awake()
+    {
         base.Awake();
-        
+
         paintMaterial = new Material(texturePaint);
         extendMaterial = new Material(extendIslands);
+        wetnessMaterial = new Material(wetnessPaint);
+
         command = new CommandBuffer();
         command.name = "CommmandBuffer - " + gameObject.name;
     }
 
-    public void initTextures(Paintable paintable){
-    RenderTexture mask = paintable.getMask();
-    RenderTexture uvIslands = paintable.getUVIslands();
-    RenderTexture extend = paintable.getExtend();
-    RenderTexture support = paintable.getSupport();
-    Renderer rend = paintable.getRenderer();
-
-    command.SetRenderTarget(mask);
-    command.ClearRenderTarget(true, true, Color.clear);
-
-    command.SetRenderTarget(support);
-    command.ClearRenderTarget(true, true, Color.clear);
-
-    command.SetRenderTarget(extend);
-    command.ClearRenderTarget(true, true, Color.clear);
-
-    paintMaterial.SetFloat(prepareUVID, 1);
-    command.SetRenderTarget(uvIslands);
-    command.ClearRenderTarget(true, true, Color.clear);
-    command.DrawRenderer(rend, paintMaterial, 0);
-
-    Graphics.ExecuteCommandBuffer(command);
-    command.Clear();
-}
-
-
-    public void paint(Paintable paintable, Vector3 pos, float radius = 1f, float hardness = .5f, float strength = .5f, Color? color = null){
+    public void initTextures(Paintable paintable)
+    {
         RenderTexture mask = paintable.getMask();
         RenderTexture uvIslands = paintable.getUVIslands();
         RenderTexture extend = paintable.getExtend();
         RenderTexture support = paintable.getSupport();
+        RenderTexture wetness = paintable.getWetness();
         Renderer rend = paintable.getRenderer();
 
+        command.SetRenderTarget(mask);
+        command.ClearRenderTarget(true, true, Color.clear);
+        command.SetRenderTarget(support);
+        command.ClearRenderTarget(true, true, Color.clear);
+        command.SetRenderTarget(extend);
+        command.ClearRenderTarget(true, true, Color.clear);
+        command.SetRenderTarget(wetness);
+        command.ClearRenderTarget(true, true, Color.clear);
+
+        paintMaterial.SetFloat(prepareUVID, 1);
+        command.SetRenderTarget(uvIslands);
+        command.ClearRenderTarget(true, true, Color.clear);
+        command.DrawRenderer(rend, paintMaterial, 0);
+
+        Graphics.ExecuteCommandBuffer(command);
+        command.Clear();
+    }
+
+    public void paint(Paintable paintable, Vector3 pos, float radius = 1f, float hardness = .5f, float strength = .5f, Color? color = null)
+    {
+        RenderTexture mask = paintable.getMask();
+        RenderTexture uvIslands = paintable.getUVIslands();
+        RenderTexture extend = paintable.getExtend();
+        RenderTexture support = paintable.getSupport();
+        RenderTexture wetness = paintable.getWetness();
+        Renderer rend = paintable.getRenderer();
+
+        // STEP 1: DRAW COLOR
         paintMaterial.SetFloat(prepareUVID, 0);
         paintMaterial.SetVector(positionID, pos);
         paintMaterial.SetFloat(hardnessID, hardness);
@@ -76,15 +86,28 @@ public class PaintManager : Singleton<PaintManager>{
 
         command.SetRenderTarget(mask);
         command.DrawRenderer(rend, paintMaterial, 0);
-
         command.SetRenderTarget(support);
         command.Blit(mask, support);
 
-        command.SetRenderTarget(extend);
-        command.Blit(mask, extend, extendMaterial);
+        Graphics.ExecuteCommandBuffer(command);
+        command.Clear();
+
+        // STEP 2: DRAW WETNESS
+        wetnessMaterial.SetVector(positionID, pos);
+        wetnessMaterial.SetFloat(hardnessID, hardness);
+        wetnessMaterial.SetFloat(strengthID, 1.0f);
+        wetnessMaterial.SetFloat(radiusID, radius);
+
+        command.SetRenderTarget(wetness);
+        command.DrawRenderer(rend, wetnessMaterial, 0);
 
         Graphics.ExecuteCommandBuffer(command);
         command.Clear();
-    }
 
+        // RE-EXTEND AT THE VERY END
+        command.SetRenderTarget(extend);
+        command.Blit(mask, extend, extendMaterial);
+        Graphics.ExecuteCommandBuffer(command);
+        command.Clear();
+    }
 }

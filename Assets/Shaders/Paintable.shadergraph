@@ -3171,7 +3171,7 @@
     "m_PerRendererData": false,
     "m_customAttributes": [],
     "m_Value": {
-        "m_SerializedTexture": "",
+        "m_SerializedTexture": "{\"texture\":{\"fileID\":8400000,\"guid\":\"c3cb3b47d38227d42989ac077355e9b6\",\"type\":2}}",
         "m_Guid": ""
     },
     "isMainTexture": false,
@@ -8076,7 +8076,7 @@
     "m_Title": "Glitter",
     "m_Position": {
         "x": -3900.800048828125,
-        "y": 905.5999755859375
+        "y": 905.5999145507813
     }
 }
 
