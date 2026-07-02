@@ -1106,7 +1106,7 @@ MonoBehaviour:
   particleRenderScale: 15
   paintBaseColor: {r: 0, g: 0, b: 1, a: 1}
   paintDeepColor: {r: 0, g: 0, b: 1, a: 1}
-  paintDensity: 10
+  paintDensity: 1
   roughness: 0.12
   metallic: 0.1
   refractiveIndex: 1.5

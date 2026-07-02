@@ -1,0 +1,373 @@
+#pragma kernel CSClearGrid
+#pragma kernel CSGenerateKeyValues
+#pragma kernel CSBitonicSortLocal
+#pragma kernel CSBitonicSortGlobal
+#pragma kernel CSReorderParticles
+#pragma kernel CSBuildGridOffsets
+#pragma kernel CSDensityPressure
+#pragma kernel CSForces
+#pragma kernel CSIntegrate
+
+struct Particle {
+    float3 position;
+    float3 velocity;
+    float3 force;
+    float density;
+    float pressure;
+    float lifetime;
+    float dryState; 
+};
+
+RWStructuredBuffer<Particle> Particles;       
+RWStructuredBuffer<Particle> ParticlesSorted; 
+
+RWStructuredBuffer<uint2> GridKeyValues; 
+RWStructuredBuffer<uint> GridCellStarts; 
+RWStructuredBuffer<uint> GridCellEnds;  
+
+uint HashDim;
+uint TotalCells;
+
+uint numParticles;
+uint sortedSize; 
+int _BlockSize;
+int _Stage;
+
+float smoothingRadius;
+float restDensity;
+float gasConstant;
+float viscosity;
+float particleMass;
+float3 gravity;
+float3 boxSize;
+float3 boxCenter;
+float boundaryDamping;
+float particleRadius;
+float deltaTime;
+float poly6;
+float spikyGrad;
+float viscLap;
+float cellSize;
+float invCellSize;
+float surfaceTension;
+
+uint GetHash(float3 pos) {
+    int3 cell = (int3)((pos + 10000.0f) * invCellSize);
+    uint3 wrapped = (uint3)(cell & (HashDim - 1));
+    return wrapped.x + (wrapped.y * HashDim) + (wrapped.z * HashDim * HashDim);
+}
+
+[numthreads(256, 1, 1)]
+void CSClearGrid(uint3 id : SV_DispatchThreadID) {
+    if (id.x >= TotalCells) return;
+    GridCellStarts[id.x] = 0xFFFFFFFF;
+    GridCellEnds[id.x] = 0xFFFFFFFF;
+}
+
+[numthreads(256, 1, 1)]
+void CSGenerateKeyValues(uint3 id : SV_DispatchThreadID) {
+    if (id.x >= sortedSize) return;
+
+    if (id.x < numParticles && Particles[id.x].lifetime > 0.0) {
+        uint hash = GetHash(Particles[id.x].position);
+        GridKeyValues[id.x] = uint2(hash, id.x);
+    } else {
+        GridKeyValues[id.x] = uint2(0xFFFFFFFF, id.x);
+    }
+}
+
+groupshared uint2 shared_data[256];
+[numthreads(256, 1, 1)]
+void CSBitonicSortLocal(uint3 id : SV_DispatchThreadID, uint GI : SV_GroupIndex) {
+    uint globalIdx = id.x;
+    
+    if (globalIdx >= sortedSize) {
+        shared_data[GI] = uint2(0xFFFFFFFF, 0xFFFFFFFF);
+    } else {
+        shared_data[GI] = GridKeyValues[globalIdx];
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    for (uint stage = 2; stage <= 256; stage <<= 1) {
+        for (uint step = stage >> 1; step > 0; step >>= 1) {
+            uint k = GI ^ step;
+            if (k > GI) {
+                uint2 valI = shared_data[GI];
+                uint2 valJ = shared_data[k];
+                bool direction = ((GI & stage) == 0);
+                if ((valI.x > valJ.x) == direction) {
+                    shared_data[GI] = valJ;
+                    shared_data[k] = valI;
+                }
+            }
+            GroupMemoryBarrierWithGroupSync();
+        }
+    }
+
+    if (globalIdx < sortedSize) {
+        GridKeyValues[globalIdx] = shared_data[GI];
+    }
+}
+
+[numthreads(256, 1, 1)]
+void CSBitonicSortGlobal(uint3 id : SV_DispatchThreadID) {
+    uint i = id.x;
+    if (i >= sortedSize) return;
+
+    uint j = i ^ _BlockSize;
+    if (j > i) {
+        uint2 valI = GridKeyValues[i];
+        uint2 valJ = GridKeyValues[j];
+
+        bool direction = ((i & _Stage) == 0);
+        if ((valI.x > valJ.x) == direction) {
+            GridKeyValues[i] = valJ;
+            GridKeyValues[j] = valI;
+        }
+    }
+}
+
+[numthreads(256, 1, 1)]
+void CSReorderParticles(uint3 id : SV_DispatchThreadID) {
+    if (id.x >= sortedSize) return;
+    
+    uint originalIndex = GridKeyValues[id.x].y;
+    Particle p;
+    if (originalIndex < numParticles) {
+        p = Particles[originalIndex];
+    } else {
+        p.position = float3(99999.0, 99999.0, 99999.0);
+        p.velocity = 0;
+        p.force = 0;
+        p.density = 0.01;
+        p.pressure = 0;
+        p.lifetime = 0;
+        p.dryState = 0.0;
+    }
+    ParticlesSorted[id.x] = p;
+}
+
+[numthreads(256, 1, 1)]
+void CSBuildGridOffsets(uint3 id : SV_DispatchThreadID) {
+    if (id.x >= sortedSize) return;
+
+    uint currKey = GridKeyValues[id.x].x;
+    if (currKey == 0xFFFFFFFF) return;
+
+    if (id.x == 0) {
+        GridCellStarts[currKey] = 0;
+    } else {
+        uint prevKey = GridKeyValues[id.x - 1].x;
+        if (currKey != prevKey) {
+            GridCellStarts[currKey] = id.x;
+            if (prevKey != 0xFFFFFFFF) {
+                GridCellEnds[prevKey] = id.x;
+            }
+        }
+    }
+
+    if (id.x == sortedSize - 1) {
+        GridCellEnds[currKey] = sortedSize;
+    } else {
+        uint nextKey = GridKeyValues[id.x + 1].x;
+        if (nextKey == 0xFFFFFFFF) {
+            GridCellEnds[currKey] = id.x + 1;
+        }
+    }
+}
+
+[numthreads(256, 1, 1)]
+void CSDensityPressure(uint3 id : SV_DispatchThreadID) {
+    if (id.x >= numParticles || ParticlesSorted[id.x].lifetime <= 0) return;
+    
+    float3 posI = ParticlesSorted[id.x].position;
+    float densitySum = 0.0;
+    float h2 = smoothingRadius * smoothingRadius;
+    float massPoly6 = particleMass * poly6;
+    
+    int3 cellIndex = (int3)((posI + 10000.0f) * invCellSize);
+
+    [unroll]
+    for (int z = -1; z <= 1; z++) {
+        uint zWrap = ((uint)(cellIndex.z + z) & (HashDim - 1)) * (HashDim * HashDim);
+        
+        [unroll]
+        for (int y = -1; y <= 1; y++) {
+            uint yWrap = ((uint)(cellIndex.y + y) & (HashDim - 1)) * HashDim;
+            
+            [unroll]
+            for (int x = -1; x <= 1; x++) {
+                uint hash = ((uint)(cellIndex.x + x) & (HashDim - 1)) + yWrap + zWrap;
+                
+                uint start = GridCellStarts[hash];
+                if (start != 0xFFFFFFFF) {
+                    uint end = GridCellEnds[hash];
+                    uint count = 0; 
+                    
+                    for (uint k = start; k < end; k++) {
+                        if (count >= 200) break; 
+                        count++;
+                        
+                        Particle neighbor = ParticlesSorted[k];
+                        float3 diff = posI - neighbor.position;
+                        float r2 = dot(diff, diff);
+
+                        if (r2 < h2) {
+                            float h2_minus_r2 = h2 - r2;
+                            densitySum += massPoly6 * (h2_minus_r2 * h2_minus_r2 * h2_minus_r2);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    ParticlesSorted[id.x].density = max(densitySum, restDensity * 0.1f);
+    ParticlesSorted[id.x].pressure = max(0.0, gasConstant * (ParticlesSorted[id.x].density - restDensity));
+}
+
+[numthreads(256, 1, 1)]
+void CSForces(uint3 id : SV_DispatchThreadID) {
+    if (id.x >= numParticles || ParticlesSorted[id.x].lifetime <= 0) return;
+
+    Particle self = ParticlesSorted[id.x];
+    float3 posI = self.position;
+    float3 velI = self.velocity;
+    
+    float presI = self.pressure;
+    float h = smoothingRadius;
+    float h2 = h * h;
+    float3 pressureForce = float3(0, 0, 0);
+    float3 viscosityForce = float3(0, 0, 0);
+    float3 cohesionForce = float3(0, 0, 0); 
+    
+    float massSpikyGradHalf = particleMass * spikyGrad * 0.5f;
+    float massViscLap = viscosity * particleMass * viscLap;
+    float massCohesion = surfaceTension * particleMass;
+    float invH = 1.0f / h;
+
+    int3 cellIndex = (int3)((posI + 10000.0f) * invCellSize);
+    
+    [unroll]
+    for (int z = -1; z <= 1; z++) {
+        uint zWrap = ((uint)(cellIndex.z + z) & (HashDim - 1)) * (HashDim * HashDim);
+        
+        [unroll]
+        for (int y = -1; y <= 1; y++) {
+            uint yWrap = ((uint)(cellIndex.y + y) & (HashDim - 1)) * HashDim;
+            
+            [unroll]
+            for (int x = -1; x <= 1; x++) {
+                uint hash = ((uint)(cellIndex.x + x) & (HashDim - 1)) + yWrap + zWrap;
+                
+                uint start = GridCellStarts[hash];
+                if (start != 0xFFFFFFFF) {
+                    uint end = GridCellEnds[hash];
+                    uint count = 0; 
+                    
+                    for (uint k = start; k < end; k++) {
+                        if (count >= 60) break; 
+                        count++;
+                        
+                        if (id.x == k) continue; 
+                        
+                        Particle neighbor = ParticlesSorted[k];
+                        float3 diff = posI - neighbor.position;
+                        float r2 = dot(diff, diff);
+
+                        if (r2 < h2 && r2 > 0.000001f) {
+                            float nDensClamped = max(neighbor.density, restDensity * 0.1f);
+                            float nPress = neighbor.pressure;
+                            float3 nVel = neighbor.velocity;
+
+                            float invNDens = 1.0f / nDensClamped;
+
+                            float r_inv = rsqrt(r2);
+                            float r = r2 * r_inv;
+                            float3 direction = diff * r_inv;
+                            float h_minus_r = h - r;
+                            
+                            float pForce = -(presI + nPress) * invNDens;
+                            float forceMag = clamp(pForce * massSpikyGradHalf * (h_minus_r * h_minus_r), -10000.0f, 10000.0f); 
+                            pressureForce += direction * forceMag;
+
+                            float3 vDiff = nVel - velI;
+                            viscosityForce += vDiff * (massViscLap * h_minus_r * invNDens);
+
+                            cohesionForce -= direction * (massCohesion * (h_minus_r * invH) * h_minus_r);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    ParticlesSorted[id.x].force = pressureForce + viscosityForce + cohesionForce;
+}
+
+[numthreads(256, 1, 1)]
+void CSIntegrate(uint3 id : SV_DispatchThreadID) {
+    if (id.x >= numParticles) return;
+    
+    Particle p = ParticlesSorted[id.x];
+    if (p.lifetime <= 0) return;
+
+    p.lifetime -= deltaTime;
+    if (p.lifetime <= 0.0) {
+        p.position = float3(99999.0f, 99999.0f, 99999.0f);
+        p.velocity = float3(0.0f, 0.0f, 0.0f);
+        p.force = float3(0.0f, 0.0f, 0.0f);
+        p.density = 0.0f;
+        p.pressure = 0.0f;
+        p.lifetime = -1.0f;
+        
+        ParticlesSorted[id.x] = p;
+        uint originalIndex = GridKeyValues[id.x].y;
+        if (originalIndex < numParticles) {
+            Particles[originalIndex] = p;
+        }
+        return;
+    }
+
+    float3 acceleration = (p.force / max(p.density, restDensity * 0.1f)) + gravity;
+    p.velocity += acceleration * deltaTime;
+    p.position += p.velocity * deltaTime;
+    
+    float3 minBounds = boxCenter - (boxSize * 0.5f) + float3(particleRadius, particleRadius, particleRadius);
+    float3 maxBounds = boxCenter + (boxSize * 0.5f) - float3(particleRadius, particleRadius, particleRadius);
+
+    if (p.position.x < minBounds.x) {
+        p.position.x = minBounds.x;
+        p.velocity.x = abs(p.velocity.x) * boundaryDamping;
+    } 
+    else if (p.position.x > maxBounds.x) {
+        p.position.x = maxBounds.x;
+        p.velocity.x = -abs(p.velocity.x) * boundaryDamping;
+    }
+
+    if (p.position.y < minBounds.y) {
+        p.position.y = minBounds.y;
+        p.velocity.y = abs(p.velocity.y) * boundaryDamping;
+        p.velocity.x *= 0.95f; 
+        p.velocity.z *= 0.95f;
+    } 
+    else if (p.position.y > maxBounds.y) {
+        p.position.y = maxBounds.y;
+        p.velocity.y = -abs(p.velocity.y) * boundaryDamping;
+    }
+
+    if (p.position.z < minBounds.z) {
+        p.position.z = minBounds.z;
+        p.velocity.z = abs(p.velocity.z) * boundaryDamping;
+    } 
+    else if (p.position.z > maxBounds.z) {
+        p.position.z = maxBounds.z;
+        p.velocity.z = -abs(p.velocity.z) * boundaryDamping;
+    }
+
+    ParticlesSorted[id.x] = p;
+    uint originalIndex = GridKeyValues[id.x].y;
+    if (originalIndex < numParticles) {
+        Particles[originalIndex] = p;
+    }
+}
