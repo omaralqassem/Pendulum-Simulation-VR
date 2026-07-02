@@ -73,7 +73,7 @@ Material:
     - _Cutoff: 0.5
     - _DebugWetness: 0
     - _DetailNormalMapScale: 1
-    - _DryColorStrength: 0.85
+    - _DryColorStrength: 0.9
     - _DstBlend: 0
     - _GlossMapScale: 1
     - _Glossiness: 0.5

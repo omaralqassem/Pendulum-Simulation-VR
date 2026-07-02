@@ -1379,7 +1379,7 @@ MonoBehaviour:
   showMeshParticles: 1
   boxSize: {x: 61, y: 39.7, z: 60}
   boundaryDamping: 0.4
-  maxParticles: 324288
+  maxParticles: 224288
   particleRadius: 0.0015
   gravity: {x: 0, y: -9.81, z: 0}
   maxParticleLifetime: 12
@@ -1389,10 +1389,10 @@ MonoBehaviour:
   viscosity: 1.5
   particleMass: 0.0000306
   surfaceTension: 20
-  dryingRate: 4
-  wetFriction: 20
-  dryFriction: 100
-  dryingViscosityScale: 30
+  dryingRate: 0.1
+  wetFriction: 0.0001
+  dryFriction: 10
+  dryingViscosityScale: 10
   targetCanvas: {fileID: 1267631995}
   fluidPaintColor: {r: 0, g: 0, b: 1, a: 1}
   fluidPaintRadius: 0.0008
@@ -1413,13 +1413,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 471223923}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: 0.12432634, z: -0, w: 0.99224144}
   m_LocalPosition: {x: 0, y: 22, z: 0}
   m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 14.284, z: 0}
 --- !u!1 &543632244
 GameObject:
   m_ObjectHideFlags: 0
@@ -4467,8 +4467,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BucketInteractionCustom
   useAutoStart: 1
-  startingOffset: {x: -5, y: 0, z: 0}
-  initialPushVelocity: {x: -2, y: 0, z: 6}
+  startingOffset: {x: 0, y: 0, z: 0}
+  initialPushVelocity: {x: 0, y: 0, z: 0}
   grabRadius: 1
   pushForce: 850
   handDamping: 70
@@ -4635,13 +4635,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1267631990}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.1643, y: 7.6, z: 2}
-  m_LocalScale: {x: 6, y: 3, z: 6}
-  m_ConstrainProportionsScale: 0
+  m_LocalRotation: {x: -0.14446484, y: -0.028195359, z: -0.03526786, w: 0.98847926}
+  m_LocalPosition: {x: 0.4, y: 8.7, z: -3}
+  m_LocalScale: {x: 5, y: 2.5, z: 5}
+  m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: -16.714, y: -2.726, z: -3.686}
 --- !u!114 &1267631995
 MonoBehaviour:
   m_ObjectHideFlags: 0
