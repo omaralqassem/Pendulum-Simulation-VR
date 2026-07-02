@@ -1103,10 +1103,10 @@ MonoBehaviour:
   bilateralCompute: {fileID: 7200000, guid: e58fb233b6563d24cb3741a047699004, type: 3}
   fluidParticleShader: {fileID: 4800000, guid: 72edc7ba03b13e545a51ab03eb833747, type: 3}
   compositeShader: {fileID: 4800000, guid: 2f6080acacb33334d92c20f380700ce4, type: 3}
-  particleRenderScale: 15
+  particleRenderScale: 7
   paintBaseColor: {r: 0, g: 0, b: 1, a: 1}
   paintDeepColor: {r: 0, g: 0, b: 1, a: 1}
-  paintDensity: 1
+  paintDensity: 3
   roughness: 0.12
   metallic: 0.1
   refractiveIndex: 1.5
