@@ -1110,8 +1110,8 @@ MonoBehaviour:
   roughness: 0.12
   metallic: 0.1
   refractiveIndex: 1.5
-  blurRadius: 4
-  depthThreshold: 0.03
+  blurRadius: 1
+  depthThreshold: 0.01
 --- !u!114 &330585549
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1379,13 +1379,13 @@ MonoBehaviour:
   showMeshParticles: 1
   boxSize: {x: 61, y: 39.7, z: 60}
   boundaryDamping: 0.4
-  maxParticles: 324288
+  maxParticles: 424288
   particleRadius: 0.0015
   gravity: {x: 0, y: -9.81, z: 0}
   maxParticleLifetime: 12
   smoothingRadius: 0.009
   restDensity: 1000
-  gasConstant: 150
+  gasConstant: 100
   viscosity: 1.5
   particleMass: 0.0000306
   surfaceTension: 20
