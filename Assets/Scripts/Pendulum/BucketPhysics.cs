@@ -212,6 +212,68 @@ private void CalculateFluidDynamics(float timeStep, Vector3 effAcc, out Vector3 
 
         Gizmos.matrix = oldMatrix;
     }
+    private bool showBucketUI = true;
+
+    private string strDryBucketMass;
+    private string strTwistSpringStiffness;
+    private string strSpinDamping;
+    private string strPaintDensity;
+    private string strDischargeCoefficient;
+    private string strHoleRadius;
+
+    private void OnGUI()
+    {
+        if (strDryBucketMass == null)
+        {
+            strDryBucketMass = dryBucketMass.ToString();
+            strTwistSpringStiffness = twistSpringStiffness.ToString();
+            strSpinDamping = spinDamping.ToString();
+            strPaintDensity = paintDensity.ToString();
+            strDischargeCoefficient = dischargeCoefficient.ToString();
+            strHoleRadius = holeRadius.ToString();
+        }
+
+        if (GUI.Button(new Rect(Screen.width - 130, Screen.height - 45, 120, 30), showBucketUI ? "Hide Bucket UI" : "Show Bucket UI"))
+        {
+            showBucketUI = !showBucketUI;
+        }
+
+        if (!showBucketUI) return;
+
+        GUI.Box(new Rect(Screen.width - 320, Screen.height - 330, 300, 270), "Bucket Physics Parameters");
+        GUILayout.BeginArea(new Rect(Screen.width - 300, Screen.height - 300, 260, 250));
+
+        GUI.contentColor = Color.cyan;
+        GUILayout.Label($"Live Paint Mass: {currentPaintMass:F2} kg");
+        GUI.contentColor = Color.white;
+        GUILayout.Space(10);
+
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("Is Hole Open:", GUILayout.Width(130));
+        hasHole = GUILayout.Toggle(hasHole, "");
+        GUILayout.EndHorizontal();
+
+        DrawFloatField("Dry Bucket Mass:", ref strDryBucketMass, ref dryBucketMass);
+        DrawFloatField("Spring Stiffness:", ref strTwistSpringStiffness, ref twistSpringStiffness);
+        DrawFloatField("Spin Damping:", ref strSpinDamping, ref spinDamping);
+        DrawFloatField("Paint Density:", ref strPaintDensity, ref paintDensity);
+        DrawFloatField("Discharge Coeff:", ref strDischargeCoefficient, ref dischargeCoefficient);
+        DrawFloatField("Hole Radius:", ref strHoleRadius, ref holeRadius);
+
+        GUILayout.EndArea();
+    }
+
+    private void DrawFloatField(string label, ref string strValue, ref float floatValue)
+    {
+        GUILayout.BeginHorizontal();
+        GUILayout.Label(label, GUILayout.Width(130));
+        strValue = GUILayout.TextField(strValue);
+        if (float.TryParse(strValue, out float parsed))
+        {
+            floatValue = parsed;
+        }
+        GUILayout.EndHorizontal();
+    }
 
     private void DrawLocalGizmoCircle(Vector3 localCenter, float radius)
     {

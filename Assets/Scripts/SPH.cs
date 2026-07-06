@@ -128,6 +128,7 @@ public class SPHSystem : MonoBehaviour
     private float holeOpenFactor = 0f;
 
     private bool isReadbackInProgress = false;
+    private bool showDebugUI = true;
 
     void Start()
     {
@@ -429,7 +430,6 @@ public class SPHSystem : MonoBehaviour
         sphCompute.SetFloat("wetFriction", wetFriction);
         sphCompute.SetFloat("dryFriction", dryFriction);
         sphCompute.SetFloat("dryingViscosityScale", dryingViscosityScale);
-
         sphCompute.SetFloat("cellSize", h);
         sphCompute.SetFloat("invCellSize", 1.0f / h);
         sphCompute.SetFloat("poly6", 315.0f / (64.0f * Mathf.PI * Mathf.Pow(h, 9)));
@@ -651,6 +651,78 @@ public class SPHSystem : MonoBehaviour
         holeOpenFactor = 0f;
 
         PrefillBucket();
+    }
+     private string strViscosity;
+    private string strGasConstant;
+    private string strSurfaceTension;
+    private string strSmoothingRadius;
+    private string strGravityY;
+    private string strDryingRate;
+     private void OnGUI()
+    {
+        if (strViscosity == null)
+        {
+            strViscosity = viscosity.ToString();
+            strGasConstant = gasConstant.ToString();
+            strSurfaceTension = surfaceTension.ToString();
+            strSmoothingRadius = smoothingRadius.ToString();
+            strGravityY = gravity.y.ToString();
+            strDryingRate = dryingRate.ToString();
+        }
+
+        if (GUI.Button(new Rect(10, 10, 120, 30), showDebugUI ? "Hide SPH UI" : "Show SPH UI"))
+        {
+            showDebugUI = !showDebugUI;
+        }
+
+        if (!showDebugUI) return;
+
+        // Create a background box
+        GUI.Box(new Rect(10, 50, 300, 250), "SPH Fluid Parameters");
+
+        GUILayout.BeginArea(new Rect(20, 80, 280, 210));
+
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("Viscosity:", GUILayout.Width(120));
+        strViscosity = GUILayout.TextField(strViscosity);
+        if (float.TryParse(strViscosity, out float v)) viscosity = v;
+        GUILayout.EndHorizontal();
+
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("Gas Constant:", GUILayout.Width(120));
+        strGasConstant = GUILayout.TextField(strGasConstant);
+        if (float.TryParse(strGasConstant, out float g)) gasConstant = g;
+        GUILayout.EndHorizontal();
+
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("Surface Tension:", GUILayout.Width(120));
+        strSurfaceTension = GUILayout.TextField(strSurfaceTension);
+        if (float.TryParse(strSurfaceTension, out float st)) surfaceTension = st;
+        GUILayout.EndHorizontal();
+
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("Smoothing Radius:", GUILayout.Width(120));
+        strSmoothingRadius = GUILayout.TextField(strSmoothingRadius);
+        if (float.TryParse(strSmoothingRadius, out float sr)) smoothingRadius = sr;
+        GUILayout.EndHorizontal();
+
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("Gravity Y:", GUILayout.Width(120));
+        strGravityY = GUILayout.TextField(strGravityY);
+        if (float.TryParse(strGravityY, out float gy)) gravity.y = gy;
+        GUILayout.EndHorizontal();
+
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("Drying Rate:", GUILayout.Width(120));
+        strDryingRate = GUILayout.TextField(strDryingRate);
+        if (float.TryParse(strDryingRate, out float dr)) dryingRate = dr;
+        GUILayout.EndHorizontal();
+
+        GUILayout.Space(15);
+
+    
+
+        GUILayout.EndArea();
     }
 
 }

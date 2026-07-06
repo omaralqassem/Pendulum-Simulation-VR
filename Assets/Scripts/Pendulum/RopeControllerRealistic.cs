@@ -379,4 +379,71 @@ public class RopeControllerRealistic : MonoBehaviour
 
         //print("Wanted: " + wantedLength + " Actual: " + currentLength);
     }
+     private bool showRopeUI = true;
+
+    private string strRopeSectionLength;
+    private string strKRope;
+    private string strDRope;
+    private string strARope;
+    private string strMRopeSection;
+    private string strRopeWidth;
+    private string strIterations;
+
+    private void OnGUI()
+    {
+        if (strKRope == null)
+        {
+            strRopeSectionLength = ropeSectionLength.ToString();
+            strKRope = kRope.ToString();
+            strDRope = dRope.ToString();
+            strARope = aRope.ToString();
+            strMRopeSection = mRopeSection.ToString();
+            strRopeWidth = ropeWidth.ToString();
+            strIterations = iterations.ToString();
+        }
+
+        if (GUI.Button(new Rect(10, Screen.height - 45, 120, 30), showRopeUI ? "Hide Rope UI" : "Show Rope UI"))
+        {
+            showRopeUI = !showRopeUI;
+        }
+
+        if (!showRopeUI) return;
+
+        GUI.Box(new Rect(10, Screen.height - 330, 300, 275), "Rope Physics Parameters");
+        GUILayout.BeginArea(new Rect(20, Screen.height - 300, 260, 260));
+
+        DrawFloatField("Section Length:", ref strRopeSectionLength, ref ropeSectionLength);
+        DrawFloatField("Spring Const (k):", ref strKRope, ref kRope);
+        DrawFloatField("Rope Friction (d):", ref strDRope, ref dRope);
+        DrawFloatField("Air Resist (a):", ref strARope, ref aRope);
+        DrawFloatField("Section Mass (m):", ref strMRopeSection, ref mRopeSection);
+        DrawFloatField("Rope Width:", ref strRopeWidth, ref ropeWidth);
+        DrawIntField("Iterations:", ref strIterations, ref iterations);
+
+        GUILayout.EndArea();
+    }
+
+    private void DrawFloatField(string label, ref string strValue, ref float floatValue)
+    {
+        GUILayout.BeginHorizontal();
+        GUILayout.Label(label, GUILayout.Width(130));
+        strValue = GUILayout.TextField(strValue);
+        if (float.TryParse(strValue, out float parsed))
+        {
+            floatValue = parsed;
+        }
+        GUILayout.EndHorizontal();
+    }
+
+    private void DrawIntField(string label, ref string strValue, ref int intValue)
+    {
+        GUILayout.BeginHorizontal();
+        GUILayout.Label(label, GUILayout.Width(130));
+        strValue = GUILayout.TextField(strValue);
+        if (int.TryParse(strValue, out int parsed))
+        {
+            intValue = Mathf.Max(1, parsed);
+        }
+        GUILayout.EndHorizontal();
+    }
 }
