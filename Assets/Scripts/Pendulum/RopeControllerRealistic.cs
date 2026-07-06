@@ -16,27 +16,27 @@ public class RopeControllerRealistic : MonoBehaviour
 
     //Rope data
     [Header("Rope data")]
-    [SerializeField]private float ropeSectionLength = 5f;
+    [SerializeField]public float ropeSectionLength = 5f;
 
     //Data we can change to change the properties of the rope
     //Spring constant
     [Header("Spring constant")]
-    [SerializeField] private float kRope = 40f;
+    [SerializeField] public float kRope = 40f;
     //Damping from rope friction constant
     [Header("Damping from rope friction constant")]
-    [SerializeField] private float dRope = 2f;
+    [SerializeField] public float dRope = 2f;
     //Damping from air resistance constant
     [Header("Damping from air resistance constant")]
-    [SerializeField] private float aRope = 0.05f;
+    [SerializeField] public float aRope = 0.05f;
     //Mass of one rope section
     [Header("Mass of one rope section")]
-    [SerializeField] private float mRopeSection = 0.2f;
+    [SerializeField] public float mRopeSection = 0.2f;
     [Header("number of Section")]
-    [SerializeField] private int numberSection = 7;
+    [SerializeField] public int numberSection = 7;
     [Header("Simulate the rope \n How accurate should the simulation be?")]
-    [SerializeField] private int iterations = 1;
+    [SerializeField] public int iterations = 1;
     [Header("ropeWidth")]
-    [SerializeField] private float ropeWidth = 0.2f;
+    [SerializeField] public float ropeWidth = 0.2f;
 
     void Start()
     {
