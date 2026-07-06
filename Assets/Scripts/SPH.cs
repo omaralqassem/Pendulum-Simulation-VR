@@ -27,42 +27,42 @@ public class SPHSystem : MonoBehaviour
     [SerializeField] private ComputeShader sphCompute;
     [SerializeField] private Material renderMaterial;
     [SerializeField] private Mesh particleMesh;
-    [SerializeField] private bool showMeshParticles = true;
+    [SerializeField] public bool showMeshParticles = true;
 
     [Header("Simulation Space")]
     [SerializeField] public Vector3 boxSize = new Vector3(42f, 39.7f, 37f);
-    [SerializeField] private float boundaryDamping = 0.4f;
+    [SerializeField] public float boundaryDamping = 0.4f;
 
     [Header("Fluid Properties")]
-    [SerializeField] private int maxParticles = 424288; 
-    [SerializeField] private float particleRadius = 0.0045f;
-    [SerializeField] private Vector3 gravity = new Vector3(0f, -9.81f, 0f);
-    [SerializeField] private float maxParticleLifetime = 20f;
+    [SerializeField] public int maxParticles = 424288; 
+    [SerializeField] public float particleRadius = 0.0045f;
+    [SerializeField] public Vector3 gravity = new Vector3(0f, -9.81f, 0f);
+    [SerializeField] public float maxParticleLifetime = 20f;
 
     [Header("SPH Parameters")]
     [SerializeField] public float smoothingRadius = 0.009f;
-    [SerializeField] private float restDensity = 1000.0f;
-    [SerializeField] private float gasConstant = 10.0f;
-    [SerializeField] private float viscosity = 1.5f;
-    [SerializeField] private float particleMass = 3.06e-05f;
-    [SerializeField] private float surfaceTension = 20f;
+    [SerializeField] public float restDensity = 1000.0f;
+    [SerializeField] public float gasConstant = 10.0f;
+    [SerializeField] public float viscosity = 1.5f;
+    [SerializeField] public float particleMass = 3.06e-05f;
+    [SerializeField] public float surfaceTension = 20f;
 
     [Header("Drying & Stickiness")]
     [Tooltip("How fast the paint dries.")]
-    [SerializeField] private float dryingRate = 0.2f;
+    [SerializeField] public float dryingRate = 0.2f;
     [Tooltip("Drag resistance when wet.")]
-    [SerializeField] private float wetFriction = 5.0f;
+    [SerializeField] public float wetFriction = 5.0f;
     [Tooltip("Drag resistance when drying.")]
-    [SerializeField] private float dryFriction = 80.0f;
+    [SerializeField] public float dryFriction = 80.0f;
     [Tooltip("Viscous cohesion multiplier between drying particles.")]
-    [SerializeField] private float dryingViscosityScale = 30.0f;
+    [SerializeField] public float dryingViscosityScale = 30.0f;
 
     [Header("Painting Integration")]
     public Paintable targetCanvas;
     public Color fluidPaintColor = Color.blue;
     public float fluidPaintRadius = 0.008f;
-    [SerializeField] private float hardness = 0.5f;
-    [SerializeField] private float strength = 0.5f;
+    [SerializeField] public float hardness = 0.5f;
+    [SerializeField] public float strength = 0.5f;
     [Range(1, 256)] public int maxPaintsPerFrame = 64;
     [Header("Visual")]
     public Color particleColor = new Color(0.2f, 0.4f, 1f, 1f);
@@ -75,7 +75,7 @@ public class SPHSystem : MonoBehaviour
     private ComputeBuffer paintHitsBuffer;
     private ComputeBuffer paintHitCountBuffer;
     
-    private const int MAX_PAINT_HITS = 256; 
+    public const int MAX_PAINT_HITS = 256; 
     private Vector3[] paintHitsArray = new Vector3[MAX_PAINT_HITS];
     private uint[] paintHitCountArray = new uint[1];
     private ComputeBuffer particleBuffer;
