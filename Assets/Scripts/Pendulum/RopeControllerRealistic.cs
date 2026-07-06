@@ -16,27 +16,27 @@ public class RopeControllerRealistic : MonoBehaviour
 
     //Rope data
     [Header("Rope data")]
-    [SerializeField]public float ropeSectionLength = 5f;
+    [SerializeField]private float ropeSectionLength = 5f;
 
     //Data we can change to change the properties of the rope
     //Spring constant
     [Header("Spring constant")]
-    [SerializeField] public float kRope = 40f;
+    [SerializeField] private float kRope = 40f;
     //Damping from rope friction constant
     [Header("Damping from rope friction constant")]
-    [SerializeField] public float dRope = 2f;
+    [SerializeField] private float dRope = 2f;
     //Damping from air resistance constant
     [Header("Damping from air resistance constant")]
-    [SerializeField] public float aRope = 0.05f;
+    [SerializeField] private float aRope = 0.05f;
     //Mass of one rope section
     [Header("Mass of one rope section")]
-    [SerializeField] public float mRopeSection = 0.2f;
+    [SerializeField] private float mRopeSection = 0.2f;
     [Header("number of Section")]
-    [SerializeField] public int numberSection = 7;
+    [SerializeField] private int numberSection = 7;
     [Header("Simulate the rope \n How accurate should the simulation be?")]
-    [SerializeField] public int iterations = 1;
+    [SerializeField] private int iterations = 1;
     [Header("ropeWidth")]
-    [SerializeField] public float ropeWidth = 0.2f;
+    [SerializeField] private float ropeWidth = 0.2f;
 
     void Start()
     {
@@ -378,5 +378,72 @@ public class RopeControllerRealistic : MonoBehaviour
         float wantedLength = ropeSectionLength * (float)(allRopeSections.Count - 1);
 
         //print("Wanted: " + wantedLength + " Actual: " + currentLength);
+    }
+     private bool showRopeUI = true;
+
+    private string strRopeSectionLength;
+    private string strKRope;
+    private string strDRope;
+    private string strARope;
+    private string strMRopeSection;
+    private string strRopeWidth;
+    private string strIterations;
+
+    private void OnGUI()
+    {
+        if (strKRope == null)
+        {
+            strRopeSectionLength = ropeSectionLength.ToString();
+            strKRope = kRope.ToString();
+            strDRope = dRope.ToString();
+            strARope = aRope.ToString();
+            strMRopeSection = mRopeSection.ToString();
+            strRopeWidth = ropeWidth.ToString();
+            strIterations = iterations.ToString();
+        }
+
+        if (GUI.Button(new Rect(10, Screen.height - 45, 120, 30), showRopeUI ? "Hide Rope UI" : "Show Rope UI"))
+        {
+            showRopeUI = !showRopeUI;
+        }
+
+        if (!showRopeUI) return;
+
+        GUI.Box(new Rect(10, Screen.height - 330, 300, 275), "Rope Physics Parameters");
+        GUILayout.BeginArea(new Rect(20, Screen.height - 300, 260, 260));
+
+        DrawFloatField("Section Length:", ref strRopeSectionLength, ref ropeSectionLength);
+        DrawFloatField("Spring Const (k):", ref strKRope, ref kRope);
+        DrawFloatField("Rope Friction (d):", ref strDRope, ref dRope);
+        DrawFloatField("Air Resist (a):", ref strARope, ref aRope);
+        DrawFloatField("Section Mass (m):", ref strMRopeSection, ref mRopeSection);
+        DrawFloatField("Rope Width:", ref strRopeWidth, ref ropeWidth);
+        DrawIntField("Iterations:", ref strIterations, ref iterations);
+
+        GUILayout.EndArea();
+    }
+
+    private void DrawFloatField(string label, ref string strValue, ref float floatValue)
+    {
+        GUILayout.BeginHorizontal();
+        GUILayout.Label(label, GUILayout.Width(130));
+        strValue = GUILayout.TextField(strValue);
+        if (float.TryParse(strValue, out float parsed))
+        {
+            floatValue = parsed;
+        }
+        GUILayout.EndHorizontal();
+    }
+
+    private void DrawIntField(string label, ref string strValue, ref int intValue)
+    {
+        GUILayout.BeginHorizontal();
+        GUILayout.Label(label, GUILayout.Width(130));
+        strValue = GUILayout.TextField(strValue);
+        if (int.TryParse(strValue, out int parsed))
+        {
+            intValue = Mathf.Max(1, parsed);
+        }
+        GUILayout.EndHorizontal();
     }
 }
