@@ -44,7 +44,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: c9593efae86d6e5449de670d12421bf0, type: 3}
+        m_Texture: {fileID: 2800000, guid: a58831eb7571b934382a86c6864def26, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MaskTexture:
@@ -73,7 +73,7 @@ Material:
     - _Cutoff: 0.5
     - _DebugWetness: 0
     - _DetailNormalMapScale: 1
-    - _DryColorStrength: 0.9
+    - _DryColorStrength: 0.85
     - _DstBlend: 0
     - _GlossMapScale: 1
     - _Glossiness: 0.5

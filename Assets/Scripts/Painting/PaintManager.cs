@@ -7,6 +7,8 @@ public class PaintManager : Singleton<PaintManager>
     public Shader texturePaint;
     public Shader extendIslands;
     public Shader wetnessPaint;
+    [Header("Watercolor Settings")]
+    public bool enableWatercolorMixing = true;
 
     int prepareUVID = Shader.PropertyToID("_PrepareUV");
     int positionID = Shader.PropertyToID("_PainterPosition");
@@ -84,10 +86,25 @@ public class PaintManager : Singleton<PaintManager>
         extendMaterial.SetFloat(uvOffsetID, paintable.extendsIslandOffset);
         extendMaterial.SetTexture(uvIslandsID, uvIslands);
 
+        // Toggle the bool
+        if (enableWatercolorMixing)
+        {
+            command.EnableShaderKeyword("WATERCOLOR_MIX");
+        }
+        else
+        {
+            command.DisableShaderKeyword("WATERCOLOR_MIX");
+        }
+
         command.SetRenderTarget(mask);
         command.DrawRenderer(rend, paintMaterial, 0);
         command.SetRenderTarget(support);
         command.Blit(mask, support);
+
+
+
+        // Turn it off after drawing so it doesn't affect the wetness pass
+        command.DisableShaderKeyword("WATERCOLOR_MIX");
 
         Graphics.ExecuteCommandBuffer(command);
         command.Clear();

@@ -8,5 +8,17 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/MainLab.unity
     guid: 99c9720ab356a0642a771bea13969a05
+  - enabled: 1
+    path: Assets/Scenes/Fabric.unity
+    guid: 94dad145b74aa544b83665b47ebfcdb1
+  - enabled: 1
+    path: Assets/Scenes/iron.unity
+    guid: 245c68022df62514da8e89253613933d
+  - enabled: 1
+    path: Assets/Scenes/drypaintpainting.unity
+    guid: 7ab2c97a6958d0542bc7efa0e27efc93
+  - enabled: 1
+    path: Assets/Scenes/waterpaintPainting.unity
+    guid: aa24d9c783886824eb5446cd9b8e8b69
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

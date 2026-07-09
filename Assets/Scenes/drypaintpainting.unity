@@ -943,6 +943,50 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &220228667
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 220228669}
+  - component: {fileID: 220228668}
+  m_Layer: 0
+  m_Name: SceneSwitcher
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &220228668
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 220228667}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1db7cd72807819479cabce8a0e5ef00, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SceneSwitcher
+--- !u!4 &220228669
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 220228667}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -6.60655, y: 7.09429, z: -10.33499}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &229794142 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: ba4814c9dfefa9048956dc798c383fbd, type: 3}
@@ -4510,6 +4554,7 @@ MonoBehaviour:
   texturePaint: {fileID: 4800000, guid: 1e235cd1e82ec7c44b96534cf001f3d2, type: 3}
   extendIslands: {fileID: 4800000, guid: e5ad985b892f76d44a4018ea2711c0c5, type: 3}
   wetnessPaint: {fileID: 4800000, guid: b85011938c9af184c805f243e4ce285f, type: 3}
+  enableWatercolorMixing: 1
 --- !u!4 &1170934080
 Transform:
   m_ObjectHideFlags: 0
@@ -4595,7 +4640,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 87c26132f4beebb469f2063d59164e97, type: 2}
+  - {fileID: 2100000, guid: 1db1af917c27c1a45a1340487b5b878a, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -6145,3 +6190,4 @@ SceneRoots:
   - {fileID: 1170934080}
   - {fileID: 1267631994}
   - {fileID: 543632246}
+  - {fileID: 220228669}

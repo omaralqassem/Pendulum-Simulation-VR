@@ -2,6 +2,7 @@
 
     Properties{
         _PainterColor ("Painter Color", Color) = (0, 0, 0, 0)
+
     }
 
     SubShader{
@@ -11,6 +12,7 @@
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
+            #pragma multi_compile _ WATERCOLOR_MIX
 
             #include "UnityCG.cginc"
 
@@ -58,7 +60,13 @@
                 float4 col = tex2D(_MainTex, i.uv);
                 float f = mask(i.worldPos, _PainterPosition, _Radius, _Hardness);
                 float edge = f * _Strength;
-                return lerp(col, _PainterColor, edge);
+
+                #if defined(WATERCOLOR_MIX)
+
+                   return col + (_PainterColor * edge);
+                #else
+                    return lerp(col, _PainterColor, edge);
+                #endif
             }
             ENDCG
         }

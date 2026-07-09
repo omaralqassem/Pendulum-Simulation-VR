@@ -7,15 +7,15 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: SPHRenderMaterial
-  m_Shader: {fileID: 4800000, guid: 8eba02c9b6d70d545ae304a7bb63ba6e, type: 3}
+  m_Name: Mat_PaintedTarget 2
+  m_Shader: {fileID: 4800000, guid: 3b5ee6d2d5393664a99c4c4d3d1b5d0c, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
   m_InvalidKeywords: []
   m_LightmapFlags: 4
-  m_EnableInstancingVariants: 1
-  m_DoubleSidedGI: 0
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 1
   m_CustomRenderQueue: -1
   stringTagMap: {}
   disabledShaderPasses: []
@@ -44,6 +44,10 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
+        m_Texture: {fileID: 2800000, guid: 413e71dc19990404580fcbcbe6a473ba, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MaskTexture:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
@@ -59,29 +63,33 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _WetnessMap:
+        m_Texture: {fileID: 8400000, guid: c3cb3b47d38227d42989ac077355e9b6, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
     - _BumpScale: 1
     - _Cutoff: 0.5
+    - _DebugWetness: 0
     - _DetailNormalMapScale: 1
+    - _DryColorStrength: 0.95
     - _DstBlend: 0
     - _GlossMapScale: 1
-    - _Glossiness: 1
+    - _Glossiness: 0.5
     - _GlossyReflections: 1
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.02
-    - _Scale: 0.003
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
-    - _SpecularWetness: 0.5
     - _SrcBlend: 1
     - _UVSec: 0
+    - _WetColorStrength: 1.2
     - _ZWrite: 1
     m_Colors:
-    - _Color: {r: 0.21568628, g: 0.21568628, b: 0.21568628, a: 1}
+    - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _WetColor: {r: 0, g: 0, b: 1, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

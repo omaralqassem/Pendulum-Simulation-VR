@@ -1,6 +1,4 @@
-using UnityEditor;
 using UnityEngine;
-
 public class BucketColorPicker : MonoBehaviour
 {
     [SerializeField] private SPHSystem sphSystem;
@@ -59,19 +57,15 @@ public class BucketColorPicker : MonoBehaviour
         GUILayout.Space(25);
 
         // ------------------------------------
-        // RGB Slider Rows
+        // RGB Slider Rows (FIXED FOR EXE BUILD)
         // ------------------------------------
-        EditorGUI.BeginChangeCheck();
-
         float r = DrawColorSlider("R", selectedColor.r, Color.red);
         float g = DrawColorSlider("G", selectedColor.g, Color.green);
         float b = DrawColorSlider("B", selectedColor.b, Color.cyan);
         float a = DrawColorSlider("A", selectedColor.a, Color.white);
 
-        if (EditorGUI.EndChangeCheck())
-        {
-            selectedColor = new Color(r, g, b, a);
-        }
+        // Simply update the color directly. OnGUI runs every frame, so this is perfectly fine
+        selectedColor = new Color(r, g, b, a);
 
         GUILayout.Space(30);
 

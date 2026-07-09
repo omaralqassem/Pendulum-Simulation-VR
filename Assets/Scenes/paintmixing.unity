@@ -1103,15 +1103,15 @@ MonoBehaviour:
   bilateralCompute: {fileID: 7200000, guid: e58fb233b6563d24cb3741a047699004, type: 3}
   fluidParticleShader: {fileID: 4800000, guid: 72edc7ba03b13e545a51ab03eb833747, type: 3}
   compositeShader: {fileID: 4800000, guid: 2f6080acacb33334d92c20f380700ce4, type: 3}
-  particleRenderScale: 15
+  particleRenderScale: 7
   paintBaseColor: {r: 0, g: 0, b: 1, a: 1}
   paintDeepColor: {r: 0, g: 0, b: 1, a: 1}
-  paintDensity: 10
+  paintDensity: 3
   roughness: 0.12
   metallic: 0.1
-  refractiveIndex: 1.5
-  blurRadius: 4
-  depthThreshold: 0.03
+  refractiveIndex: 1
+  blurRadius: 5
+  depthThreshold: 0.5
 --- !u!114 &330585549
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1209,6 +1209,50 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 5573fbbed95ad6048a1584290e3b5b10, type: 3}
+--- !u!1 &402436114
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 402436116}
+  - component: {fileID: 402436115}
+  m_Layer: 0
+  m_Name: SceneSwitcher
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &402436115
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 402436114}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1db7cd72807819479cabce8a0e5ef00, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SceneSwitcher
+--- !u!4 &402436116
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 402436114}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -6.60655, y: 7.09429, z: -10.33499}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
@@ -1370,7 +1414,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 56cc445fa9cdef54a9bc8c6c85ddfede, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GPUSPH3D
-  fillAmount: 1
+  fillAmount: 0.8
   bucketTransform: {fileID: 984022701}
   bucketPhysics: {fileID: 984022702}
   sphCompute: {fileID: 7200000, guid: 3e5e0c30a8986fd469a02b9c6b94541c, type: 3}
@@ -1379,13 +1423,13 @@ MonoBehaviour:
   showMeshParticles: 1
   boxSize: {x: 61, y: 39.7, z: 60}
   boundaryDamping: 0.4
-  maxParticles: 324288
+  maxParticles: 1
   particleRadius: 0.0015
   gravity: {x: 0, y: -9.81, z: 0}
   maxParticleLifetime: 12
   smoothingRadius: 0.009
   restDensity: 1000
-  gasConstant: 150
+  gasConstant: 100
   viscosity: 1.5
   particleMass: 0.0000306
   surfaceTension: 20
@@ -1395,9 +1439,9 @@ MonoBehaviour:
   dryingViscosityScale: 30
   targetCanvas: {fileID: 1267631995}
   fluidPaintColor: {r: 0, g: 0, b: 1, a: 1}
-  fluidPaintRadius: 0.0008
-  hardness: 1
-  strength: 0.5
+  fluidPaintRadius: 0.008
+  hardness: 0.9
+  strength: 0.7
   maxPaintsPerFrame: 256
   particleColor: {r: 0.21568628, g: 0.21568628, b: 0.21568628, a: 1}
   isInitialized: 0
@@ -4467,8 +4511,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BucketInteractionCustom
   useAutoStart: 1
-  startingOffset: {x: -5, y: 0, z: 0}
-  initialPushVelocity: {x: -2, y: 0, z: 6}
+  startingOffset: {x: 0, y: 0, z: 0}
+  initialPushVelocity: {x: 0, y: 0, z: 0}
   grabRadius: 1
   pushForce: 850
   handDamping: 70
@@ -4510,7 +4554,7 @@ MonoBehaviour:
   texturePaint: {fileID: 4800000, guid: 1e235cd1e82ec7c44b96534cf001f3d2, type: 3}
   extendIslands: {fileID: 4800000, guid: e5ad985b892f76d44a4018ea2711c0c5, type: 3}
   wetnessPaint: {fileID: 4800000, guid: b85011938c9af184c805f243e4ce285f, type: 3}
-  enableWatercolorMixing: 1
+  enableWatercolorMixing: 0
 --- !u!4 &1170934080
 Transform:
   m_ObjectHideFlags: 0
@@ -4793,7 +4837,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f246ac7a95e00234ba40debc39463a42, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CanvasDrying
-  dryingRate: 0.05
+  dryingRate: 0.5
   DryShader: {fileID: 4800000, guid: bf5499ed18998a14fa81345ada6e1f32, type: 3}
 --- !u!1001 &1308542510
 PrefabInstance:
@@ -5300,50 +5344,6 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 1631984168}
   m_SourcePrefab: {fileID: 100100000, guid: ba4814c9dfefa9048956dc798c383fbd, type: 3}
---- !u!1 &1786727992
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1786727994}
-  - component: {fileID: 1786727993}
-  m_Layer: 0
-  m_Name: SceneSwitcher
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1786727993
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1786727992}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a1db7cd72807819479cabce8a0e5ef00, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SceneSwitcher
---- !u!4 &1786727994
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1786727992}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -6.60655, y: 7.09429, z: -10.33499}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &1817959732 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4731941170816802, guid: 5573fbbed95ad6048a1584290e3b5b10, type: 3}
@@ -6190,4 +6190,4 @@ SceneRoots:
   - {fileID: 1170934080}
   - {fileID: 1267631994}
   - {fileID: 543632246}
-  - {fileID: 1786727994}
+  - {fileID: 402436116}
